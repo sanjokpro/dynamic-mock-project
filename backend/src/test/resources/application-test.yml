@@ -1,0 +1,20 @@
+spring:
+  data:
+    mongodb:
+      # Will be overridden by Testcontainers via @DynamicPropertySource
+      uri: 
+    redis:
+      # Will be overridden by Testcontainers via @DynamicPropertySource
+      host: 
+      port: 
+
+graalvm:
+  script:
+    timeout-seconds: 5
+    max-memory-mb: 128
+
+logging:
+  level:
+    com.dynamicmock: DEBUG
+    org.springframework: WARN
+

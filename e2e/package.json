@@ -1,0 +1,28 @@
+{
+  "name": "dynamic-mock-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright end-to-end tests for Dynamic Mock API Server",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:routes": "playwright test tests/routes.e2e.spec.ts tests/routes-versioning.e2e.spec.ts",
+    "test:gql": "playwright test tests/graphql.e2e.spec.ts",
+    "test:grpc": "playwright test tests/grpc.e2e.spec.ts",
+    "test:grpc-live": "playwright test tests/grpc-live.e2e.spec.ts",
+    "test:iso": "playwright test tests/iso8583.e2e.spec.ts",
+    "test:iso-live": "playwright test tests/iso8583-live.e2e.spec.ts",
+    "test:smoke": "playwright test tests/health.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.2",
+    "@grpc/grpc-js": "^1.10.6",
+    "@grpc/proto-loader": "^0.7.13",
+    "iso_8583": "^2.3.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

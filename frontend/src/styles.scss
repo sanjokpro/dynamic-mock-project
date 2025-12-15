@@ -1,0 +1,48 @@
+@use '@angular/material' as mat;
+
+// Use a prebuilt theme to avoid palette compatibility issues
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+// Global Styles
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Clean helper classes */
+.spacer {
+  flex: 1 1 auto;
+}
+
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+// Utility for code blocks
+code {
+  font-family: 'Fira Code', Consolas, monospace;
+  font-size: 13px;
+  background: #e8e8e8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #333;
+}
+
+// Fix Material tab overflow
+.mat-mdc-tab-body-wrapper {
+  overflow: hidden !important;
+}
+
+.mat-mdc-tab-body-content {
+  overflow: hidden !important;
+}
+
+// Ensure cards don't overflow
+.mat-mdc-card {
+  overflow: hidden;
+}

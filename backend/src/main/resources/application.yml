@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: dynamic-mock-server
+  
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/dynamicmock}
+      database: dynamicmock
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+server:
+  port: ${SERVER_PORT:8080}
+
+graalvm:
+  script:
+    timeout-seconds: 5
+    max-memory-mb: 128
+    allowed-languages: js,python
+    allow-host-access: false
+    allow-io: false
+    allow-create-process: false
+    allow-create-thread: false
+    allow-native-access: false
+
+mock:
+  route:
+    base-path: /mock
+    default-delay-ms: 0
+    max-delay-ms: 30000
+
+# gRPC configuration
+grpc:
+  default-port: 9090
+  max-concurrent-calls: 100
+  
+# ISO8583 configuration (jPOS Q2 framework)
+iso8583:
+  default-port: 8583
+  socket-timeout-ms: 30000
+  q2:
+    enabled: false                   # Use standalone by default; set true to enable Q2
+    deploy-dir: deploy               # Directory for Q2 deployment XMLs
+  
+# GraphQL configuration  
+graphql:
+  path: /graphql
+  graphiql:
+    enabled: true
+    path: /graphiql
+
+logging:
+  level:
+    com.dynamicmock: DEBUG
+    org.springframework.web: INFO
+    org.jpos: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
