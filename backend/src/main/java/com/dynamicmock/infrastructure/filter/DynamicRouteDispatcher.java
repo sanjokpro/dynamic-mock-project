@@ -6,6 +6,7 @@ import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
 import com.dynamicmock.application.service.ScenarioService;
 import com.dynamicmock.domain.entity.MockRoute;
 import com.dynamicmock.domain.entity.Scenario.ScenarioState;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
     private final ResponseTemplateEngine templateEngine;
     private final RequestMatcher requestMatcher;
     private final ScenarioService scenarioService;
+    private final ObjectMapper objectMapper;
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -222,29 +224,45 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             return null;
         }
         try {
-            // Simple JSON parsing - in production, use Jackson ObjectMapper
-            // For now, return null and let scripts handle it
+            // Use Jackson to parse the body if it looks like JSON
+            if (body.trim().startsWith("{") || body.trim().startsWith("[")) {
+                return (Map<String, Object>) objectMapper.readValue(body, Map.class);
+            }
             return null;
         } catch (Exception e) {
-            log.debug("Could not parse body as JSON", e);
+            log.debug("Could not parse body as JSON: {}", e.getMessage());
             return null;
         }
     }
     
     private Map<String, Object> buildTemplateContext(ScriptContext context) {
         Map<String, Object> templateContext = new HashMap<>();
-        templateContext.put("request", Map.of(
-            "method", context.getMethod() != null ? context.getMethod() : "",
-            "path", context.getPath() != null ? context.getPath() : "",
-            "headers", context.getHeaders() != null ? context.getHeaders() : Map.of(),
-            "queryParams", context.getQueryParams() != null ? context.getQueryParams() : Map.of(),
-            "pathVariables", context.getPathVariables() != null ? context.getPathVariables() : Map.of(),
-            "body", context.getBody() != null ? context.getBody() : ""
-        ));
+        
+        // Add request details
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("method", context.getMethod() != null ? context.getMethod() : "");
+        requestMap.put("path", context.getPath() != null ? context.getPath() : "");
+        requestMap.put("headers", context.getHeaders() != null ? context.getHeaders() : Map.of());
+        requestMap.put("queryParams", context.getQueryParams() != null ? context.getQueryParams() : Map.of());
+        requestMap.put("pathVariables", context.getPathVariables() != null ? context.getPathVariables() : Map.of());
+        requestMap.put("body", context.getBody() != null ? context.getBody() : "");
+        requestMap.put("bodyJson", context.getBodyJson() != null ? context.getBodyJson() : Map.of());
+        templateContext.put("request", requestMap);
+        
+        // Add response details
         templateContext.put("response", Map.of(
             "status", context.getStatus() != null ? context.getStatus() : 200,
             "headers", context.getResponseHeaders() != null ? context.getResponseHeaders() : Map.of()
         ));
+        
+        // Flatten path variables and query params into root for easy access
+        if (context.getPathVariables() != null) {
+            templateContext.putAll(context.getPathVariables());
+        }
+        if (context.getQueryParams() != null) {
+            templateContext.putAll(context.getQueryParams());
+        }
+        
         templateContext.put("vars", context.getVariables() != null ? context.getVariables() : Map.of());
         templateContext.put("state", context.getState() != null ? context.getState() : Map.of());
         return templateContext;
@@ -325,4 +343,3 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         }
     }
 }
-

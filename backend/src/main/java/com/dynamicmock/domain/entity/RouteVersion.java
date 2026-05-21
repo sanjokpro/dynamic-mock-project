@@ -1,35 +1,24 @@
 package com.dynamicmock.domain.entity;
 
-/**
- * DOMAIN LAYER - Entity
- * Clean Architecture: Version history entity for route evolution tracking.
- * Immutable snapshot of route state.
- */
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * Stores historical versions of mock routes for rollback and diff functionality.
- * Each time a route is updated, a new version record is created.
+ * DOMAIN LAYER - Entity
+ * Clean Architecture: Version history entity for route evolution tracking.
+ * Immutable snapshot of route state.
  */
-@Document(collection = "route_versions")
-@CompoundIndex(name = "route_version_idx", def = "{'routeId': 1, 'versionNumber': 1}", unique = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class RouteVersion {
     
-    @Id
     private String id;
     
     /**
@@ -112,4 +101,3 @@ public class RouteVersion {
         route.setScenarioName(this.scenarioName);
     }
 }
-

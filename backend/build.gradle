@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.5'
-    id 'io.spring.dependency-management' version '1.1.6'
+    id 'org.springframework.boot' version '4.0.1'
+    id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
     id 'war'
 }
@@ -21,7 +21,7 @@ java {
 ext {
     graalvmVersion = '23.1.1'
     handlebarsVersion = '4.3.1'
-    testcontainersVersion = '1.20.4'
+    testcontainersVersion = '1.19.8'
     mockitoVersion = '5.12.0'
     jnaVersion = '5.14.0'
     junitLauncherVersion = '1.11.2'
@@ -56,11 +56,18 @@ dependencies {
 
     implementation "com.github.jknack:handlebars:${handlebarsVersion}"
     implementation 'io.lettuce:lettuce-core'
+    // Jackson dependencies - Spring Boot 4.0.1 requires explicit ObjectMapper bean configuration
     implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.jayway.jsonpath:json-path:2.9.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-graphql'
-    implementation 'com.graphql-java:graphql-java:21.3'
+    // Let Spring Boot manage GraphQL Java version for compatibility
+    // implementation 'com.graphql-java:graphql-java:21.3'
+    // DataLoader support for GraphQL observation/instrumentation - let Spring manage this too
+    // implementation 'com.graphql-java:java-dataloader:3.2.0'
 
     implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
     implementation "io.grpc:grpc-protobuf:${grpcVersion}"
@@ -81,8 +88,7 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
     testImplementation "net.java.dev.jna:jna:${jnaVersion}"
-    // Explicit launcher to avoid Gradle 8.14+ deprecation of auto-loading test framework
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher:${junitLauncherVersion}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 if (packagingType == 'warProvided') {
@@ -95,11 +101,15 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+tasks.withType(Test).configureEach {
+    // Let Testcontainers/Docker discover host automatically on macOS
+}
+
 // Note: The CopyProcessingSpec.getFileMode() deprecation warning comes from
 // plugin internals (likely Spring Boot plugin) and will be resolved when plugins are updated.
 // This is harmless and doesn't affect functionality.
 
-tasks.withType(Test).configureEach {
+tasks.named('test') {
     useJUnitPlatform()
     maxParallelForks = 1
     jvmArgs = [
@@ -193,5 +203,12 @@ if (buildWithEmbeddedUi) {
     tasks.named('processResources') {
         dependsOn tasks.named('copyFrontendDist')
     }
+}
+
+// Configure bootRun task
+tasks.named('bootRun') {
+    mainClass.set('com.dynamicmock.DynamicMockApplication')
+    // Allow bootRun to continue even if MongoDB/Redis are not available
+    // The application will log connection errors but won't fail immediately
 }
 

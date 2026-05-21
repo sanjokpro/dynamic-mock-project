@@ -9,8 +9,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * Redis configuration for state management
+ * Note: GenericJackson2JsonRedisSerializer is deprecated in Spring Boot 4.0 but still functional
+ * Will be updated when Spring Data Redis provides the replacement API
  */
 @Configuration
+@SuppressWarnings("removal")
 public class RedisConfig {
     
     @Bean

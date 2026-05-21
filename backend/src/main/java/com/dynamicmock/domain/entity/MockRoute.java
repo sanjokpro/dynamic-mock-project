@@ -1,31 +1,24 @@
 package com.dynamicmock.domain.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+
 /**
  * DOMAIN LAYER - Entity
  * Clean Architecture: Core business entity representing a mock HTTP route.
  * Independent of frameworks and external concerns.
  */
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.LocalDateTime;
-import java.util.Map;
-
-@Document(collection = "mock_routes")
-@CompoundIndex(name = "path_method_version_idx", def = "{'path': 1, 'method': 1, 'version': 1}", unique = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MockRoute {
     
-    @Id
     private String id;
     
     private String path;
@@ -55,4 +48,3 @@ public class MockRoute {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

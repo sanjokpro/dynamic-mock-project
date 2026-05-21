@@ -2,6 +2,10 @@ spring:
   application:
     name: dynamic-mock-server
   
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.graphql.observation.GraphQlObservationAutoConfiguration
+  
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/dynamicmock}

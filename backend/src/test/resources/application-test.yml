@@ -1,17 +1,16 @@
 spring:
   data:
     mongodb:
-      # Will be overridden by Testcontainers via @DynamicPropertySource
-      uri: 
+      uri: mongodb://localhost:27017/dynamicmock-test
     redis:
-      # Will be overridden by Testcontainers via @DynamicPropertySource
-      host: 
-      port: 
+      host: localhost
+      port: 6379
 
 graalvm:
   script:
     timeout-seconds: 5
     max-memory-mb: 128
+    allow-host-access: true
 
 logging:
   level:

@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * Using Spring Boot auto-configuration - no need to extend AbstractMongoClientConfiguration
  */
 @Configuration
-@EnableMongoRepositories(basePackages = "com.dynamicmock.domain.port.out")
+@EnableMongoRepositories(basePackages = "com.dynamicmock.infrastructure.persistence.mongodb.repository")
 public class MongoConfig {
     // Spring Boot will auto-configure MongoDB using application properties
 }
