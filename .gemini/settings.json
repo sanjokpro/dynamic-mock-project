@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "java-lsp": {
+      "command": "/opt/homebrew/bin/jdtls",
+      "args": []
+    }
+  }
+}
