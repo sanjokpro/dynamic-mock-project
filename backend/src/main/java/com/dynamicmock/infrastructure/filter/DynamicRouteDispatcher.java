@@ -39,6 +39,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
     private final com.dynamicmock.application.service.TrafficLogger trafficLogger;
     private final com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.dynamicmock.application.service.AsyncWebhookService asyncWebhookService;
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -215,6 +216,15 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             // Send response
             sendResponse(response, route, scriptContext, responseBody);
 
+            // Trigger async webhook if configured
+            if (scriptContext.getWebhook() != null && !scriptContext.getWebhook().isEmpty()) {
+                try {
+                    asyncWebhookService.triggerWebhook(route.getId(), scriptContext.getWebhook());
+                } catch (Exception e) {
+                    log.error("Failed to enqueue async webhook: {}", e.getMessage(), e);
+                }
+            }
+
             trafficLogger.log(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.builder()
                 .protocol("HTTP")
                 .resourceId(route.getId())
@@ -372,9 +382,10 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 context.setStatus(updatedContext.getStatus());
                 context.setResponseHeaders(updatedContext.getResponseHeaders());
                 context.setResponseBody(updatedContext.getResponseBody());
-                // CRITICAL: Update variables and state from script execution
+                // CRITICAL: Update variables, state and webhook from script execution
                 context.setVariables(updatedContext.getVariables());
                 context.setState(updatedContext.getState());
+                context.setWebhook(updatedContext.getWebhook());
                 log.debug("Updated context after script execution: vars={}, status={}", 
                     context.getVariables(), context.getStatus());
             }

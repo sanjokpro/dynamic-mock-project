@@ -36,5 +36,8 @@ public class ScriptContext {
     
     // Variables (request-scoped)
     private Map<String, Object> variables;
+    
+    // Webhook configuration (trigger async webhook post-response)
+    private Map<String, Object> webhook;
 }
 

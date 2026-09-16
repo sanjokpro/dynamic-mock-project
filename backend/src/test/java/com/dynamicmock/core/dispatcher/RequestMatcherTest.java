@@ -141,6 +141,34 @@ class RequestMatcherTest {
     }
 
     @Test
+    void matchBody_shouldMatchXPath() {
+        assertTrue(matches(null, null, "xpath", "//*[local-name()='name']", "<user><name>John</name></user>"));
+    }
+
+    @Test
+    void matchBody_shouldMatchXPathWithEquality() {
+        assertTrue(matches(null, null, "xpath", "//*[local-name()='name'] == John", "<user><name>John</name></user>"));
+    }
+
+    @Test
+    void matchBody_shouldFailWhenXPathNotFound() {
+        assertFalse(matches(null, null, "xpath", "//*[local-name()='email']", "<user><name>John</name></user>"));
+    }
+
+    @Test
+    void matchBody_shouldHandleMalformedXml() {
+        assertFalse(matches(null, null, "xpath", "//*[local-name()='name']", "<user><name>John</user>"));
+    }
+
+    @Test
+    void matchBody_shouldPreventXXE() {
+        String xxePayload = "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>"
+                + "<!DOCTYPE foo [ <!ENTITY xxe SYSTEM \"file:///etc/passwd\"> ]>"
+                + "<user><name>&xxe;</name></user>";
+        assertFalse(matches(null, null, "xpath", "//*[local-name()='name']", xxePayload));
+    }
+
+    @Test
     void matchAll_shouldMatchAllCriteria() {
         Map<String, String> headerMatchers = new HashMap<>();
         headerMatchers.put("Content-Type", "application/json");

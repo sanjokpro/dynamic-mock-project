@@ -5,6 +5,14 @@ import com.dynamicmock.adapter.in.web.dto.CreateRouteRequest;
 import com.dynamicmock.domain.port.out.MockRouteRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Tag;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.dynamicmock.application.service.AsyncWebhookService;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.timeout;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -50,6 +58,9 @@ class ScriptExecutionIntegrationTest {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         repository.deleteAll();
     }
+
+    @MockitoBean
+    private AsyncWebhookService asyncWebhookService;
 
     @Test
     void testPreScriptExecution() throws Exception {
@@ -199,4 +210,84 @@ class ScriptExecutionIntegrationTest {
                 .andExpect(jsonPath("$.language").value("python"));
     }
 
+    @Test
+    void testWebhookExtractionFromJs() throws Exception {
+        CreateRouteRequest request = new CreateRouteRequest();
+        request.setPath("/webhook-script");
+        request.setMethod("POST");
+        request.setPostScript("webhook = { url: 'http://example.com/callback', method: 'POST', body: '{\"test\":123}', delayMs: 1000 }; response.body = '{\"status\":\"ok\"}';");
+        request.setResponseStatus(200);
+
+        MvcResult createResult = mockMvc.perform(post("/api/routes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        com.dynamicmock.adapter.in.web.dto.RouteResponse createdRoute = objectMapper.readValue(
+            createResult.getResponse().getContentAsString(),
+            com.dynamicmock.adapter.in.web.dto.RouteResponse.class
+        );
+
+        mockMvc.perform(post("/api/routes/" + createdRoute.getId() + "/activate"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/mock/webhook-script")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> webhookCaptor = ArgumentCaptor.forClass((Class) Map.class);
+
+        verify(asyncWebhookService, timeout(1000)).triggerWebhook(eq(createdRoute.getId()), webhookCaptor.capture());
+
+        Map<String, Object> webhookConfig = webhookCaptor.getValue();
+        assertEquals("http://example.com/callback", webhookConfig.get("url"));
+        assertEquals("POST", webhookConfig.get("method"));
+        assertEquals("{\"test\":123}", webhookConfig.get("body"));
+        assertEquals(1000, ((Number) webhookConfig.get("delayMs")).intValue());
+    }
+
+    @Test
+    void testWebhookExtractionFromPython() throws Exception {
+        CreateRouteRequest request = new CreateRouteRequest();
+        request.setPath("/webhook-script-py");
+        request.setMethod("POST");
+        request.setPostScript("webhook = { 'url': 'http://example.com/callback-py', 'method': 'POST', 'body': '{\"test\":123}', 'delayMs': 1000 }\nresponse = {'body': '{\"status\":\"ok\"}'}");
+        request.setScriptLanguage("python");
+        request.setResponseStatus(200);
+
+        MvcResult createResult = mockMvc.perform(post("/api/routes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        com.dynamicmock.adapter.in.web.dto.RouteResponse createdRoute = objectMapper.readValue(
+            createResult.getResponse().getContentAsString(),
+            com.dynamicmock.adapter.in.web.dto.RouteResponse.class
+        );
+
+        mockMvc.perform(post("/api/routes/" + createdRoute.getId() + "/activate"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/mock/webhook-script-py")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> webhookCaptor = ArgumentCaptor.forClass((Class) Map.class);
+
+        verify(asyncWebhookService, timeout(1000)).triggerWebhook(eq(createdRoute.getId()), webhookCaptor.capture());
+
+        Map<String, Object> webhookConfig = webhookCaptor.getValue();
+        assertEquals("http://example.com/callback-py", webhookConfig.get("url"));
+        assertEquals("POST", webhookConfig.get("method"));
+        assertEquals("{\"test\":123}", webhookConfig.get("body"));
+        assertEquals(1000, ((Number) webhookConfig.get("delayMs")).intValue());
+    }
 }

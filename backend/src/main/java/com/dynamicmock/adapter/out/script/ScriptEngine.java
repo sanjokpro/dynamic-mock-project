@@ -76,6 +76,7 @@ public class ScriptEngine {
             bindings.putMember("response", createResponseObject(polyglotContext, context, language));
             bindings.putMember("state", createStateObject(polyglotContext, context, language));
             bindings.putMember("vars", createVarsObject(polyglotContext, context, language));
+            bindings.putMember("webhook", createObject(polyglotContext, language, context.getWebhook() != null ? context.getWebhook() : new HashMap<>()));
             
             // Execute script with timeout
             Value result = executeWithTimeout(polyglotContext, script, language);
@@ -226,6 +227,11 @@ public class ScriptEngine {
         Value vars = bindings.getMember("vars");
         if (vars != null && vars.hasMembers()) {
             updatedContext.setVariables(extractMap(vars, language));
+        }
+        
+        Value webhook = bindings.getMember("webhook");
+        if (webhook != null && webhook.hasMembers()) {
+            updatedContext.setWebhook(extractMap(webhook, language));
         }
         
         return ScriptExecutionResult.builder()

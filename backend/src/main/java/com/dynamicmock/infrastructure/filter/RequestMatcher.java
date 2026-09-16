@@ -9,6 +9,15 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.io.ByteArrayInputStream;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 
 /**
  * Matches incoming requests against route matchers (headers, query params, body)
@@ -118,6 +127,9 @@ public class RequestMatcher {
             case "jsonpath":
                 return matchJsonPath(requestBody, pattern);
 
+            case "xpath":
+                return matchXPath(requestBody, pattern);
+
             default:
                 log.warn("Unknown body match type: {}", matchType);
                 return false;
@@ -182,6 +194,62 @@ public class RequestMatcher {
             return false;
         } catch (Exception e) {
             log.warn("JSONPath evaluation failed for '{}': {}", jsonPathExpression, e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean matchXPath(String requestBody, String xpathExpression) {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            // XXE Hardening
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            dbf.setXIncludeAware(false);
+            dbf.setExpandEntityReferences(false);
+            // Namespaces
+            dbf.setNamespaceAware(true);
+
+            DocumentBuilder builder = dbf.newDocumentBuilder();
+            Document document = builder.parse(new ByteArrayInputStream(requestBody.getBytes("UTF-8")));
+
+            XPathFactory xpathFactory = XPathFactory.newInstance();
+            XPath xpath = xpathFactory.newXPath();
+
+            if (xpathExpression.contains("==")) {
+                String[] parts = xpathExpression.split("==", 2);
+                String path = parts[0].trim();
+                String expectedValue = parts[1].trim();
+
+                if (expectedValue.startsWith("\"") && expectedValue.endsWith("\"")) {
+                    expectedValue = expectedValue.substring(1, expectedValue.length() - 1);
+                }
+                if (expectedValue.startsWith("'") && expectedValue.endsWith("'")) {
+                    expectedValue = expectedValue.substring(1, expectedValue.length() - 1);
+                }
+
+                String actualValue = xpath.evaluate(path, document);
+                return actualValue != null && actualValue.equals(expectedValue);
+            } else if (xpathExpression.contains("!=")) {
+                String[] parts = xpathExpression.split("!=", 2);
+                String path = parts[0].trim();
+                String expectedValue = parts[1].trim();
+
+                if (expectedValue.startsWith("\"") && expectedValue.endsWith("\"")) {
+                    expectedValue = expectedValue.substring(1, expectedValue.length() - 1);
+                }
+                if (expectedValue.startsWith("'") && expectedValue.endsWith("'")) {
+                    expectedValue = expectedValue.substring(1, expectedValue.length() - 1);
+                }
+
+                String actualValue = xpath.evaluate(path, document);
+                return actualValue != null && !actualValue.equals(expectedValue);
+            } else {
+                NodeList nodes = (NodeList) xpath.evaluate(xpathExpression, document, XPathConstants.NODESET);
+                return nodes != null && nodes.getLength() > 0;
+            }
+        } catch (Exception e) {
+            log.warn("XPath evaluation failed for '{}': {}", xpathExpression, e.getMessage());
             return false;
         }
     }
