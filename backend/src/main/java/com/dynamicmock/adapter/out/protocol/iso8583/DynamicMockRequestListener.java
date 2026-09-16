@@ -3,6 +3,7 @@ package com.dynamicmock.adapter.out.protocol.iso8583;
 import com.dynamicmock.adapter.out.script.ScriptContext;
 import com.dynamicmock.adapter.out.script.ScriptEngine;
 import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
+import com.dynamicmock.application.service.TrafficLogger;
 import com.dynamicmock.domain.entity.Iso8583Endpoint;
 import com.dynamicmock.domain.entity.Iso8583Endpoint.Iso8583Mock;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
     private int serverPort;
     private ResponseTemplateEngine templateEngine;
     private ScriptEngine scriptEngine;
+    private TrafficLogger trafficLogger;
     
     private static ApplicationContext applicationContext;
     
@@ -59,6 +61,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
         if (applicationContext != null) {
             this.templateEngine = applicationContext.getBean(ResponseTemplateEngine.class);
             this.scriptEngine = applicationContext.getBean(ScriptEngine.class);
+            this.trafficLogger = applicationContext.getBean(TrafficLogger.class);
         }
         
         log.info("DynamicMockRequestListener configured for port {}", serverPort);
@@ -66,6 +69,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
     
     @Override
     public boolean process(ISOSource source, ISOMsg request) {
+        long startTime = System.currentTimeMillis();
         try {
             String mti = request.getMTI();
             log.debug("Received ISO8583 on port {}: MTI={}", serverPort, mti);
@@ -76,6 +80,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
             if (endpoints.isEmpty()) {
                 log.warn("No endpoints configured for port {}", serverPort);
                 sendDefaultResponse(source, request);
+                logTraffic(mti, request, 200, System.currentTimeMillis() - startTime, "Default");
                 return true;
             }
             
@@ -102,6 +107,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
             if (matched == null) {
                 log.debug("No matching mock found for MTI={}, using default response", mti);
                 sendDefaultResponse(source, request);
+                logTraffic(mti, request, 200, System.currentTimeMillis() - startTime, "Default");
                 return true;
             }
             
@@ -113,6 +119,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
             source.send(response);
             
             log.debug("Sent response: MTI={}", response.getMTI());
+            logTraffic(mti, request, 200, System.currentTimeMillis() - startTime, matched.mock.getName());
             return true;
             
         } catch (Exception e) {
@@ -122,6 +129,7 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
             } catch (Exception ex) {
                 log.error("Failed to send error response", ex);
             }
+            logTraffic("", request, 500, System.currentTimeMillis() - startTime, "Error");
             return true;
         }
     }
@@ -383,6 +391,22 @@ public class DynamicMockRequestListener implements ISORequestListener, Configura
         source.send(response);
     }
     
+    private void logTraffic(String mti, ISOMsg request, int status, long durationMs, String matchName) {
+        if (trafficLogger == null) return;
+        try {
+            trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                .protocol("ISO8583")
+                .method(mti)
+                .path("/iso8583/port=" + serverPort)
+                .status(status)
+                .durationMs(durationMs)
+                .matchName(matchName)
+                .build());
+        } catch (Exception e) {
+            log.warn("Failed to log ISO8583 traffic: {}", e.getMessage());
+        }
+    }
+
     /**
      * Helper class to track matched mock with its parent endpoint
      */

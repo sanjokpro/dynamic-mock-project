@@ -56,6 +56,12 @@ class DynamicRouteDispatcherTest {
     private ValueOperations<String, Object> valueOperations;
 
     @Mock
+    private com.dynamicmock.application.service.TrafficLogger trafficLogger;
+
+    @Mock
+    private com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -102,7 +108,7 @@ class DynamicRouteDispatcherTest {
 
         // Then
         assertTrue(result);
-        verify(routeRegistry, never()).findRoute(anyString(), anyString());
+        verify(routeRegistry, never()).findRoutes(anyString(), anyString());
     }
 
     @Test
@@ -111,7 +117,7 @@ class DynamicRouteDispatcherTest {
         when(request.getRequestURI()).thenReturn("/mock/test");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("");
-        when(routeRegistry.findRoute("GET", "/test")).thenReturn(baseMatch);
+        when(routeRegistry.findRoutes("GET", "/test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(baseMatch)));
         when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
         when(templateEngine.render(anyString(), any())).thenReturn("{\"message\": \"success\"}");
         when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
@@ -135,7 +141,7 @@ class DynamicRouteDispatcherTest {
         when(request.getRequestURI()).thenReturn("/mock/notfound");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("");
-        when(routeRegistry.findRoute("GET", "/notfound")).thenReturn(null);
+        when(routeRegistry.findRoutes("GET", "/notfound")).thenReturn(java.util.List.of());
         when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
         
         StringWriter stringWriter = new StringWriter();
@@ -157,7 +163,7 @@ class DynamicRouteDispatcherTest {
         when(request.getRequestURI()).thenReturn("/mock/test");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("");
-        when(routeRegistry.findRoute("GET", "/test")).thenReturn(baseMatch);
+        when(routeRegistry.findRoutes("GET", "/test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(baseMatch)));
         when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
         when(templateEngine.render(anyString(), any())).thenReturn("{\"message\": \"success\"}");
         
@@ -185,7 +191,7 @@ class DynamicRouteDispatcherTest {
         when(request.getRequestURI()).thenReturn("/mock/test");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("");
-        when(routeRegistry.findRoute("GET", "/test")).thenReturn(baseMatch);
+        when(routeRegistry.findRoutes("GET", "/test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(baseMatch)));
         when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
         when(templateEngine.render(anyString(), any())).thenReturn("{\"message\": \"success\"}");
         
@@ -212,7 +218,7 @@ class DynamicRouteDispatcherTest {
         when(request.getRequestURI()).thenReturn("/mock/users/123");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("");
-        when(routeRegistry.findRoute("GET", "/users/123")).thenReturn(matchWithVars);
+        when(routeRegistry.findRoutes("GET", "/users/123")).thenReturn(new java.util.ArrayList<>(java.util.List.of(matchWithVars)));
         when(templateEngine.render(anyString(), any())).thenReturn("{\"userId\": \"123\"}");
         when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
         

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -35,9 +36,13 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
     private final RequestMatcher requestMatcher;
     private final ScenarioService scenarioService;
     private final ObjectMapper objectMapper;
+    private final com.dynamicmock.application.service.TrafficLogger trafficLogger;
+    private final com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
+    private final RedisTemplate<String, Object> redisTemplate;
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        long startTime = System.currentTimeMillis();
         String path = request.getRequestURI();
         String method = request.getMethod();
         
@@ -58,9 +63,9 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             requestBody = ((CachedBodyHttpServletRequest) request).getBodyAsString();
         }
 
-        // Find matching route (considering path pattern and matchers)
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute(method, mockPath);
-        if (match == null) {
+        // Find matching routes (considering path pattern)
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes(method, mockPath);
+        if (matches.isEmpty()) {
             log.debug("No route found for {} {}", method, mockPath);
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             try {
@@ -71,19 +76,44 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             return false; // Stop processing
         }
         
-        MockRoute route = match.getRoute();
+        // Sort matches by number of matchers descending (specificity)
+        matches.sort((m1, m2) -> {
+            int size1 = m1.getRoute().getMatchers() != null ? m1.getRoute().getMatchers().size() : 0;
+            int size2 = m2.getRoute().getMatchers() != null ? m2.getRoute().getMatchers().size() : 0;
+            return Integer.compare(size2, size1); // Descending
+        });
         
-        // Validate request against route matchers
-        if (!requestMatcher.matches(request, route, requestBody)) {
-            log.debug("Request does not match matchers for route {} {}", method, mockPath);
+        RouteRegistry.RouteMatch match = null;
+        for (RouteRegistry.RouteMatch candidate : matches) {
+            if (requestMatcher.matches(request, candidate.getRoute(), requestBody)) {
+                match = candidate;
+                break;
+            }
+        }
+        
+        if (match == null) {
+            log.debug("Request does not match matchers for any route {} {}", method, mockPath);
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             try {
                 response.getWriter().write("{\"error\":\"Request does not match route matchers\"}");
             } catch (IOException e) {
                 log.error("Error writing response", e);
             }
+            trafficLogger.log(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.builder()
+                .protocol("HTTP")
+                // Cannot log resourceId properly here if none matched, maybe use the first route's ID or none
+                .resourceId(matches.get(0).getRoute().getId())
+                .method(method)
+                .path(mockPath)
+                .status(404)
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName("No Match (Matchers)")
+                .build());
             return false;
         }
+        
+        MockRoute route = match.getRoute();
+        String matchName = route.getMethod() + " " + route.getPath();
         
         log.debug("Matched route: {} {} -> {}", method, mockPath, route.getId());
         
@@ -141,7 +171,30 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             // Render response template
             String responseBody = "";
             if (responseTemplate != null && !responseTemplate.trim().isEmpty()) {
-                responseBody = templateEngine.render(responseTemplate, buildTemplateContext(scriptContext));
+                // Resolve environment variables
+                Map<String, String> envVars = new HashMap<>();
+                String envId = request.getHeader("X-Dynamic-Mock-Env");
+                if (envId != null && !envId.isEmpty()) {
+                    try {
+                        envVars = environmentService.getEnvironment(envId).getVariables();
+                    } catch (Exception e) {
+                        log.warn("Could not load environment {}: {}", envId, e.getMessage());
+                    }
+                } else {
+                    // Try to find default environment
+                    final Map<String, String> finalEnvVars = envVars;
+                    environmentService.getAllEnvironments().stream()
+                        .filter(e -> Boolean.TRUE.equals(e.getIsDefault()))
+                        .findFirst()
+                        .ifPresent(e -> {
+                            Map<String, String> defaultVars = e.getVariables();
+                            if (defaultVars != null) finalEnvVars.putAll(defaultVars);
+                        });
+                }
+
+                Map<String, Object> templateContext = buildTemplateContext(scriptContext);
+                templateContext.put("env", envVars);
+                responseBody = templateEngine.render(responseTemplate, templateContext);
             }
             
             // Execute post-script (can modify responseBody)
@@ -161,6 +214,16 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             
             // Send response
             sendResponse(response, route, scriptContext, responseBody);
+
+            trafficLogger.log(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.builder()
+                .protocol("HTTP")
+                .resourceId(route.getId())
+                .method(method)
+                .path(mockPath)
+                .status(response.getStatus())
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(matchName)
+                .build());
             
         } catch (Exception e) {
             log.error("Error processing mock route: {}", e.getMessage(), e);
@@ -170,6 +233,15 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             } catch (IOException ex) {
                 log.error("Error writing error response", ex);
             }
+            trafficLogger.log(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.builder()
+                .protocol("HTTP")
+                .resourceId(route.getId())
+                .method(method)
+                .path(mockPath)
+                .status(500)
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(matchName + " (Error)")
+                .build());
         }
         
         return false; // Stop processing, we've handled the request
@@ -203,6 +275,12 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             log.warn("Error reading request body", e);
         }
         
+        String envId = request.getHeader("X-Dynamic-Mock-Env");
+        String stateKey = "dynamic-mock:script-state:global";
+        if (envId != null && !envId.isEmpty()) {
+            stateKey = "dynamic-mock:script-state:env:" + envId;
+        }
+
         return ScriptContext.builder()
             .method(request.getMethod())
             .path(request.getRequestURI())
@@ -215,7 +293,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             .responseHeaders(new HashMap<>(match.getRoute().getResponseHeaders() != null ? 
                 match.getRoute().getResponseHeaders() : Map.of()))
             .variables(new HashMap<>())
-            .state(new HashMap<>())
+            .state(new com.dynamicmock.adapter.out.script.RedisBackedStateMap(stateKey, redisTemplate))
             .build();
     }
     

@@ -16,12 +16,13 @@ import org.springframework.stereotype.Component;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * ISO8583 mock server with dual-mode support:
@@ -265,12 +266,277 @@ public class Iso8583Server {
     }
     
     private ISOMsg processMessage(ISOMsg request, Iso8583Endpoint endpoint) throws ISOException {
-        // Placeholder for new message processing logic using endpoint.getMocks()
         String mti = request.getMTI();
+        log.debug("Processing ISO8583 message: MTI={}", mti);
+
+        // Build context for scripts and templates
+        Map<String, Object> context = buildContext(request, mti);
+
+        // Run interceptor script if enabled
+        if (Boolean.TRUE.equals(endpoint.getInterceptorEnabled()) &&
+            endpoint.getInterceptorScript() != null) {
+            boolean continueProcessing = runInterceptor(endpoint, context, request);
+            if (!continueProcessing) {
+                log.debug("Message rejected by interceptor");
+                ISOMsg response = (ISOMsg) request.clone();
+                response.setMTI(getResponseMti(mti));
+                response.set(39, "05"); // Do not honor
+                return response;
+            }
+        }
+
+        // Find matching mock
+        Iso8583Endpoint.Iso8583Mock matched = findMatchingMock(endpoint, request, mti);
+
+        if (matched == null) {
+            log.debug("No matching mock found for MTI={}, using default response", mti);
+            ISOMsg response = (ISOMsg) request.clone();
+            response.setMTI(getResponseMti(mti));
+            response.set(39, "00");
+            return response;
+        }
+
+        log.debug("Matched mock '{}' for MTI={}", matched.getName(), mti);
+
+        // Clone request to create response
         ISOMsg response = (ISOMsg) request.clone();
-        response.setMTI(getResponseMti(mti));
-        response.set(39, "00");
+
+        // Apply delay
+        if (matched.getDelayMs() != null && matched.getDelayMs() > 0) {
+            try {
+                Thread.sleep(matched.getDelayMs());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // Set response MTI
+        String responseMti = matched.getResponseMti() != null ?
+                matched.getResponseMti() : getResponseMti(mti);
+        response.setMTI(responseMti);
+
+        // Run mock's response script if enabled
+        if (Boolean.TRUE.equals(matched.getScriptEnabled()) && matched.getScript() != null) {
+            runResponseScript(matched, context, response);
+        }
+
+        // Apply response field templates
+        if (matched.getResponseFields() != null) {
+            for (Map.Entry<Integer, String> entry : matched.getResponseFields().entrySet()) {
+                String value = renderTemplate(entry.getValue(), context);
+                if (value != null) {
+                    response.set(entry.getKey(), value);
+                }
+            }
+        }
+
+        // Set response code
+        if (matched.getResponseCode() != null) {
+            response.set(39, matched.getResponseCode());
+        } else if (!response.hasField(39)) {
+            response.set(39, "00");
+        }
+
+        log.debug("ISO8583 response prepared: MTI={} code={}", response.getMTI(), response.getString(39));
         return response;
+    }
+
+    /**
+     * Find the best matching mock by MTI and field matchers.
+     */
+    private Iso8583Endpoint.Iso8583Mock findMatchingMock(Iso8583Endpoint endpoint, ISOMsg request, String mti) throws ISOException {
+        if (endpoint.getMocks() == null || endpoint.getMocks().isEmpty()) {
+            return null;
+        }
+
+        // Collect candidates with matching MTI, sorted by priority
+        List<Iso8583Endpoint.Iso8583Mock> candidates = endpoint.getMocks().stream()
+                .filter(m -> Boolean.TRUE.equals(m.getEnabled()))
+                .filter(m -> m.getMti() != null && m.getMti().equals(mti))
+                .sorted((a, b) -> {
+                    int priorityA = a.getPriority() != null ? a.getPriority() : 0;
+                    int priorityB = b.getPriority() != null ? b.getPriority() : 0;
+                    return Integer.compare(priorityB, priorityA);
+                })
+                .collect(Collectors.toList());
+
+        // Find first candidate whose matchers match the request
+        for (Iso8583Endpoint.Iso8583Mock candidate : candidates) {
+            if (matchesConditions(request, candidate.getMatchers())) {
+                return candidate;
+            }
+        }
+
+        // Fallback: find a catch-all mock (no matchers) among candidates
+        for (Iso8583Endpoint.Iso8583Mock candidate : candidates) {
+            if (candidate.getMatchers() == null || candidate.getMatchers().isEmpty()) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if the request matches the mock's field matchers using regex.
+     */
+    private boolean matchesConditions(ISOMsg request, Map<String, String> matchers) throws ISOException {
+        if (matchers == null || matchers.isEmpty()) {
+            return true;
+        }
+
+        for (Map.Entry<String, String> entry : matchers.entrySet()) {
+            String key = entry.getKey();
+            String pattern = entry.getValue();
+
+            String actualValue = null;
+
+            if (key.startsWith("field.") || key.startsWith("field_")) {
+                int fieldNum = Integer.parseInt(key.substring(6));
+                actualValue = request.getString(fieldNum);
+            } else if (key.equals("mti")) {
+                actualValue = request.getMTI();
+            }
+
+            if (actualValue == null) {
+                return false;
+            }
+
+            if (!Pattern.matches(pattern, actualValue)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Build the context map for scripts and templates from the ISO8583 request.
+     */
+    private Map<String, Object> buildContext(ISOMsg request, String mti) throws ISOException {
+        Map<String, Object> context = new HashMap<>();
+        Map<String, String> requestFields = new HashMap<>();
+
+        for (int i = 0; i <= 128; i++) {
+            if (request.hasField(i)) {
+                requestFields.put(String.valueOf(i), request.getString(i));
+            }
+        }
+
+        context.put("request", requestFields);
+        context.put("mti", mti);
+
+        // Common fields for convenience
+        context.put("pan", request.getString(2));
+        context.put("processingCode", request.getString(3));
+        context.put("amount", request.getString(4));
+        context.put("stan", request.getString(11));
+        context.put("localTime", request.getString(12));
+        context.put("localDate", request.getString(13));
+        context.put("expiryDate", request.getString(14));
+        context.put("mcc", request.getString(18));
+        context.put("posEntryMode", request.getString(22));
+        context.put("rrn", request.getString(37));
+        context.put("terminalId", request.getString(41));
+        context.put("merchantId", request.getString(42));
+        context.put("currencyCode", request.getString(49));
+
+        // Shared state
+        context.put("state", new HashMap<String, Object>());
+
+        return context;
+    }
+
+    /**
+     * Run the interceptor script. Returns false if the script rejects the message.
+     */
+    private boolean runInterceptor(Iso8583Endpoint endpoint, Map<String, Object> context, ISOMsg request) {
+        try {
+            ScriptContext scriptContext = new ScriptContext();
+            scriptContext.setBody(context.get("request").toString());
+            scriptContext.setVariables(new HashMap<>(context));
+
+            // Add control variable
+            scriptContext.getVariables().put("continueProcessing", true);
+
+            scriptEngine.execute(
+                    endpoint.getInterceptorScript(),
+                    endpoint.getInterceptorScriptLanguage() != null ?
+                            endpoint.getInterceptorScriptLanguage() : "js",
+                    scriptContext
+            );
+
+            // Check if script wants to stop processing
+            Object continueFlag = scriptContext.getVariables().get("continueProcessing");
+            if (continueFlag instanceof Boolean && !((Boolean) continueFlag)) {
+                return false;
+            }
+
+            // Update context with any modifications from interceptor
+            context.putAll(scriptContext.getVariables());
+
+            return true;
+        } catch (Exception e) {
+            log.error("Interceptor script error in endpoint '{}'", endpoint.getName(), e);
+            return true; // Continue processing on error
+        }
+    }
+
+    /**
+     * Run a mock's response script to set dynamic response fields.
+     */
+    private void runResponseScript(Iso8583Endpoint.Iso8583Mock mock, Map<String, Object> context, ISOMsg response) {
+        try {
+            ScriptContext scriptContext = new ScriptContext();
+            scriptContext.setBody(context.get("request").toString());
+            scriptContext.setVariables(new HashMap<>(context));
+
+            // Add mutable response fields map
+            Map<String, String> responseFields = new HashMap<>();
+            scriptContext.getVariables().put("responseFields", responseFields);
+
+            scriptEngine.execute(
+                    mock.getScript(),
+                    mock.getScriptLanguage() != null ? mock.getScriptLanguage() : "js",
+                    scriptContext
+            );
+
+            // Apply script-set response fields
+            @SuppressWarnings("unchecked")
+            Map<String, String> scriptResponseFields =
+                    (Map<String, String>) scriptContext.getVariables().get("responseFields");
+
+            if (scriptResponseFields != null) {
+                for (Map.Entry<String, String> entry : scriptResponseFields.entrySet()) {
+                    try {
+                        response.set(Integer.parseInt(entry.getKey()), entry.getValue());
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid field number in script response: {}", entry.getKey());
+                    }
+                }
+            }
+
+            // Update context
+            context.putAll(scriptContext.getVariables());
+
+        } catch (Exception e) {
+            log.error("Response script error in mock '{}'", mock.getName(), e);
+        }
+    }
+
+    /**
+     * Render a template string using the Handlebars template engine.
+     */
+    private String renderTemplate(String template, Map<String, Object> context) {
+        if (templateEngine == null || template == null) {
+            return template;
+        }
+        try {
+            return templateEngine.render(template, context);
+        } catch (Exception e) {
+            log.warn("Template rendering error: {}", e.getMessage());
+            return template;
+        }
     }
     
     private String getResponseMti(String requestMti) {

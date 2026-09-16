@@ -194,8 +194,8 @@ class VersionServiceTest {
         // When
         versionService.rollbackToVersion("route-id", 1);
 
-        // Then
-        verify(routeRegistry).unregister("GET", "/test");
+        // Verify registry was updated
+        verify(routeRegistry).unregister(any(MockRoute.class));
         verify(routeRegistry).register(any(MockRoute.class));
     }
 

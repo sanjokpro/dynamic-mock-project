@@ -23,8 +23,9 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users", "1");
         routeRegistry.register(route);
         
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("GET", "/users");
-        assertNotNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("GET", "/users");
+        assertFalse(matches.isEmpty());
+        RouteRegistry.RouteMatch match = matches.get(0);
         assertEquals(route, match.getRoute());
         assertTrue(match.getPathVariables().isEmpty());
     }
@@ -34,8 +35,9 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users/{id}", "1");
         routeRegistry.register(route);
         
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("GET", "/users/123");
-        assertNotNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("GET", "/users/123");
+        assertFalse(matches.isEmpty());
+        RouteRegistry.RouteMatch match = matches.get(0);
         assertEquals(route, match.getRoute());
         assertEquals("123", match.getPathVariables().get("id"));
     }
@@ -45,16 +47,17 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users/{userId}/posts/{postId}", "1");
         routeRegistry.register(route);
         
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("GET", "/users/123/posts/456");
-        assertNotNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("GET", "/users/123/posts/456");
+        assertFalse(matches.isEmpty());
+        RouteRegistry.RouteMatch match = matches.get(0);
         assertEquals("123", match.getPathVariables().get("userId"));
         assertEquals("456", match.getPathVariables().get("postId"));
     }
     
     @Test
     void testFindRouteNotFound() {
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("GET", "/nonexistent");
-        assertNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("GET", "/nonexistent");
+        assertTrue(matches.isEmpty());
     }
     
     @Test
@@ -62,8 +65,8 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users", "1");
         routeRegistry.register(route);
         
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("POST", "/users");
-        assertNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("POST", "/users");
+        assertTrue(matches.isEmpty());
     }
     
     @Test
@@ -71,11 +74,11 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users", "1");
         routeRegistry.register(route);
         
-        assertNotNull(routeRegistry.findRoute("GET", "/users"));
+        assertFalse(routeRegistry.findRoutes("GET", "/users").isEmpty());
         
-        routeRegistry.unregister("GET", "/users");
+        routeRegistry.unregister(route);
         
-        assertNull(routeRegistry.findRoute("GET", "/users"));
+        assertTrue(routeRegistry.findRoutes("GET", "/users").isEmpty());
     }
     
     @Test
@@ -83,9 +86,9 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("GET", "/users/{id}", "1");
         routeRegistry.register(route);
         
-        routeRegistry.unregister("GET", "/users/{id}");
+        routeRegistry.unregister(route);
         
-        assertNull(routeRegistry.findRoute("GET", "/users/123"));
+        assertTrue(routeRegistry.findRoutes("GET", "/users/123").isEmpty());
     }
     
     @Test
@@ -106,7 +109,7 @@ class RouteRegistryTest {
         
         routeRegistry.clear();
         
-        assertNull(routeRegistry.findRoute("GET", "/users"));
+        assertTrue(routeRegistry.findRoutes("GET", "/users").isEmpty());
         assertTrue(routeRegistry.getAllRoutes().isEmpty());
     }
     
@@ -121,9 +124,9 @@ class RouteRegistryTest {
         
         routeRegistry.loadRoutes(java.util.Arrays.asList(route1, route2, route3));
         
-        assertNotNull(routeRegistry.findRoute("GET", "/users"));
-        assertNotNull(routeRegistry.findRoute("POST", "/posts"));
-        assertNull(routeRegistry.findRoute("GET", "/inactive"));
+        assertFalse(routeRegistry.findRoutes("GET", "/users").isEmpty());
+        assertFalse(routeRegistry.findRoutes("POST", "/posts").isEmpty());
+        assertTrue(routeRegistry.findRoutes("GET", "/inactive").isEmpty());
     }
     
     @Test
@@ -134,7 +137,7 @@ class RouteRegistryTest {
         routeRegistry.register(route1);
         routeRegistry.register(route2);
         
-        assertNotNull(routeRegistry.findRoute("GET", "/users"));
+        assertFalse(routeRegistry.findRoutes("GET", "/users").isEmpty());
     }
     
     @Test
@@ -142,8 +145,9 @@ class RouteRegistryTest {
         MockRoute route = createMockRoute("get", "/users", "1"); // lowercase
         routeRegistry.register(route);
         
-        RouteRegistry.RouteMatch match = routeRegistry.findRoute("GET", "/users");
-        assertNotNull(match);
+        java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes("GET", "/users");
+        assertFalse(matches.isEmpty());
+        RouteRegistry.RouteMatch match = matches.get(0);
     }
     
     @Test

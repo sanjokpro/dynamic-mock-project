@@ -4,12 +4,15 @@ import com.dynamicmock.DynamicMockApplication;
 import com.dynamicmock.adapter.in.web.dto.CreateRouteRequest;
 import com.dynamicmock.domain.port.out.MockRouteRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import java.util.Map;
+
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,6 +25,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import org.springframework.test.context.ActiveProfiles;
 
+@Tag("integration")
 @SpringBootTest(classes = DynamicMockApplication.class, webEnvironment = SpringBootTest.WebEnvironment.MOCK,
     properties = {
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.graphql.GraphQlAutoConfiguration,org.springframework.boot.autoconfigure.graphql.observation.GraphQlObservationAutoConfiguration",
@@ -194,4 +198,5 @@ class ScriptExecutionIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Hello from Python"))
                 .andExpect(jsonPath("$.language").value("python"));
     }
+
 }

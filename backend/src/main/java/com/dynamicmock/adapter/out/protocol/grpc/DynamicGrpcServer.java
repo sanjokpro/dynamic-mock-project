@@ -3,6 +3,7 @@ package com.dynamicmock.adapter.out.protocol.grpc;
 import com.dynamicmock.adapter.out.script.ScriptContext;
 import com.dynamicmock.adapter.out.script.ScriptEngine;
 import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
+import com.dynamicmock.application.service.TrafficLogger;
 import com.dynamicmock.domain.entity.GrpcEndpoint;
 import com.dynamicmock.domain.entity.GrpcEndpoint.MethodConfig;
 import tools.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ public class DynamicGrpcServer {
     private final ResponseTemplateEngine templateEngine;
     private final ScriptEngine scriptEngine;
     private final ObjectMapper objectMapper;
+    private final TrafficLogger trafficLogger;
     
     @Value("${grpc.default-port:9090}")
     private int defaultPort;
@@ -163,6 +165,7 @@ public class DynamicGrpcServer {
     }
     
     private void handleUnary(MethodConfig method, byte[] request, StreamObserver<byte[]> responseObserver) {
+        long startTime = System.currentTimeMillis();
         try {
             // Apply delay if configured
             if (method.getDelayMs() != null && method.getDelayMs() > 0) {
@@ -176,6 +179,14 @@ public class DynamicGrpcServer {
                     status = status.withDescription(method.getErrorMessage());
                 }
                 responseObserver.onError(status.asRuntimeException());
+                trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                    .protocol("GRPC")
+                    .method(method.getMethodType())
+                    .path(method.getMethodName())
+                    .status(Status.Code.valueOf(method.getStatusCode()).value())
+                    .durationMs(System.currentTimeMillis() - startTime)
+                    .matchName(method.getMethodName() + " (Error)")
+                    .build());
                 return;
             }
             
@@ -186,15 +197,33 @@ public class DynamicGrpcServer {
             responseObserver.onNext(responseBytes);
             responseObserver.onCompleted();
             
+            trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                .protocol("GRPC")
+                .method(method.getMethodType())
+                .path(method.getMethodName())
+                .status(0)
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(method.getMethodName())
+                .build());
+            
         } catch (Exception e) {
             log.error("Error handling gRPC unary call", e);
             responseObserver.onError(Status.INTERNAL
                     .withDescription(e.getMessage())
                     .asRuntimeException());
+            trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                .protocol("GRPC")
+                .method(method.getMethodType())
+                .path(method.getMethodName())
+                .status(13) // INTERNAL
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(method.getMethodName() + " (Error)")
+                .build());
         }
     }
     
     private void handleServerStreaming(MethodConfig method, byte[] request, StreamObserver<byte[]> responseObserver) {
+        long startTime = System.currentTimeMillis();
         try {
             // Apply delay if configured
             if (method.getDelayMs() != null && method.getDelayMs() > 0) {
@@ -217,15 +246,33 @@ public class DynamicGrpcServer {
             
             responseObserver.onCompleted();
             
+            trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                .protocol("GRPC")
+                .method(method.getMethodType())
+                .path(method.getMethodName())
+                .status(0)
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(method.getMethodName())
+                .build());
+            
         } catch (Exception e) {
             log.error("Error handling gRPC server streaming call", e);
             responseObserver.onError(Status.INTERNAL
                     .withDescription(e.getMessage())
                     .asRuntimeException());
+            trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                .protocol("GRPC")
+                .method(method.getMethodType())
+                .path(method.getMethodName())
+                .status(13)
+                .durationMs(System.currentTimeMillis() - startTime)
+                .matchName(method.getMethodName() + " (Error)")
+                .build());
         }
     }
     
     private StreamObserver<byte[]> handleClientStreaming(MethodConfig method, StreamObserver<byte[]> responseObserver) {
+        long startTime = System.currentTimeMillis();
         return new StreamObserver<>() {
             private final StringBuilder requestBuffer = new StringBuilder();
             
@@ -237,6 +284,14 @@ public class DynamicGrpcServer {
             @Override
             public void onError(Throwable t) {
                 log.error("Client streaming error", t);
+                trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                    .protocol("GRPC")
+                    .method(method.getMethodType())
+                    .path(method.getMethodName())
+                    .status(2) // UNKNOWN
+                    .durationMs(System.currentTimeMillis() - startTime)
+                    .matchName(method.getMethodName() + " (Error)")
+                    .build());
             }
             
             @Override
@@ -245,16 +300,33 @@ public class DynamicGrpcServer {
                     String responseJson = generateResponse(method, requestBuffer.toString().getBytes());
                     responseObserver.onNext(responseJson.getBytes());
                     responseObserver.onCompleted();
+                    trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                        .protocol("GRPC")
+                        .method(method.getMethodType())
+                        .path(method.getMethodName())
+                        .status(0)
+                        .durationMs(System.currentTimeMillis() - startTime)
+                        .matchName(method.getMethodName())
+                        .build());
                 } catch (Exception e) {
                     responseObserver.onError(Status.INTERNAL
                             .withDescription(e.getMessage())
                             .asRuntimeException());
+                    trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                        .protocol("GRPC")
+                        .method(method.getMethodType())
+                        .path(method.getMethodName())
+                        .status(13)
+                        .durationMs(System.currentTimeMillis() - startTime)
+                        .matchName(method.getMethodName() + " (Error)")
+                        .build());
                 }
             }
         };
     }
     
     private StreamObserver<byte[]> handleBidiStreaming(MethodConfig method, StreamObserver<byte[]> responseObserver) {
+        long startTime = System.currentTimeMillis();
         return new StreamObserver<>() {
             @Override
             public void onNext(byte[] request) {
@@ -276,6 +348,14 @@ public class DynamicGrpcServer {
             @Override
             public void onCompleted() {
                 responseObserver.onCompleted();
+                trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+                    .protocol("GRPC")
+                    .method(method.getMethodType())
+                    .path(method.getMethodName())
+                    .status(0)
+                    .durationMs(System.currentTimeMillis() - startTime)
+                    .matchName(method.getMethodName())
+                    .build());
             }
         };
     }

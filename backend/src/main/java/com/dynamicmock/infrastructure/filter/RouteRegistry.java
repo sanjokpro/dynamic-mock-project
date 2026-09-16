@@ -20,8 +20,8 @@ import java.util.stream.Collectors;
 @Component
 public class RouteRegistry {
     
-    // Map: method -> path -> MockRoute
-    private final Map<String, Map<String, MockRoute>> routes = new ConcurrentHashMap<>();
+    // Map: method -> path -> List<MockRoute>
+    private final Map<String, Map<String, List<MockRoute>>> routes = new ConcurrentHashMap<>();
     
     // Map: method -> compiled path patterns -> MockRoute
     private final Map<String, List<PatternRoute>> patternRoutes = new ConcurrentHashMap<>();
@@ -50,49 +50,56 @@ public class RouteRegistry {
     /**
      * Unregister a route from the registry
      */
-    public void unregister(String method, String path) {
-        if (method == null || path == null) {
+    public void unregister(MockRoute route) {
+        if (route == null || route.getMethod() == null || route.getPath() == null) {
             return;
         }
         
-        String normalizedMethod = method.toUpperCase();
-        String normalizedPath = normalizePath(path);
+        String normalizedMethod = route.getMethod().toUpperCase();
+        String normalizedPath = normalizePath(route.getPath());
         
         routes.computeIfPresent(normalizedMethod, (m, pathMap) -> {
-            pathMap.remove(normalizedPath);
+            List<MockRoute> routeList = pathMap.get(normalizedPath);
+            if (routeList != null) {
+                routeList.removeIf(r -> r.getId().equals(route.getId()));
+                if (routeList.isEmpty()) {
+                    pathMap.remove(normalizedPath);
+                }
+            }
             return pathMap.isEmpty() ? null : pathMap;
         });
         
         // Remove from pattern routes
         patternRoutes.computeIfPresent(normalizedMethod, (m, patternList) -> {
-            patternList.removeIf(pr -> pr.path.equals(normalizedPath));
+            patternList.removeIf(pr -> pr.route.getId().equals(route.getId()));
             return patternList.isEmpty() ? null : patternList;
         });
         
-        log.info("Unregistered route: {} {}", normalizedMethod, normalizedPath);
+        log.info("Unregistered route: {} {} ({})", normalizedMethod, normalizedPath, route.getId());
     }
     
     /**
-     * Find a route matching the given method and path
-     * Returns the route and extracted path variables
+     * Find routes matching the given method and path
+     * Returns a list of matching routes and extracted path variables
      */
-    public RouteMatch findRoute(String method, String path) {
+    public List<RouteMatch> findRoutes(String method, String path) {
         if (method == null || path == null) {
-            return null;
+            return List.of();
         }
         
         String normalizedMethod = method.toUpperCase();
         String normalizedPath = normalizePath(path);
+        List<RouteMatch> matches = new ArrayList<>();
         
         // Try exact match first
-        Map<String, MockRoute> methodRoutes = routes.get(normalizedMethod);
+        Map<String, List<MockRoute>> methodRoutes = routes.get(normalizedMethod);
         if (methodRoutes != null) {
-            MockRoute exactRoute = methodRoutes.get(normalizedPath);
-            if (exactRoute != null) {
-                return RouteMatch.builder()
-                    .route(exactRoute)
+            List<MockRoute> exactRoutes = methodRoutes.get(normalizedPath);
+            if (exactRoutes != null) {
+                exactRoutes.forEach(route -> matches.add(RouteMatch.builder()
+                    .route(route)
                     .pathVariables(Map.of())
-                    .build();
+                    .build()));
             }
         }
         
@@ -103,24 +110,30 @@ public class RouteRegistry {
                 java.util.regex.Matcher matcher = patternRoute.pattern.matcher(normalizedPath);
                 if (matcher.matches()) {
                     Map<String, String> pathVars = extractPathVariables(patternRoute.path, normalizedPath);
-                    return RouteMatch.builder()
+                    matches.add(RouteMatch.builder()
                         .route(patternRoute.route)
                         .pathVariables(pathVars)
-                        .build();
+                        .build());
                 }
             }
         }
         
-        return null;
+        return matches;
     }
     
-    /**
-     * Get all registered routes
-     */
     public List<MockRoute> getAllRoutes() {
-        return routes.values().stream()
+        List<MockRoute> allRoutes = new ArrayList<>();
+        routes.values().stream()
             .flatMap(pathMap -> pathMap.values().stream())
-            .collect(Collectors.toList());
+            .flatMap(List::stream)
+            .forEach(allRoutes::add);
+            
+        patternRoutes.values().stream()
+            .flatMap(List::stream)
+            .map(pr -> pr.route)
+            .forEach(allRoutes::add);
+            
+        return allRoutes.stream().distinct().collect(Collectors.toList());
     }
     
     /**
@@ -145,7 +158,8 @@ public class RouteRegistry {
     
     private void registerExactRoute(String method, String path, MockRoute route) {
         routes.computeIfAbsent(method, k -> new ConcurrentHashMap<>())
-            .put(path, route);
+            .computeIfAbsent(path, k -> new ArrayList<>())
+            .add(route);
     }
     
     private void registerPatternRoute(String method, String path, MockRoute route) {

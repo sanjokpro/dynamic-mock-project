@@ -261,7 +261,7 @@ public class Q2ServerManager {
                     %s
                 </channel>
                 
-                <request-listener class="com.dynamicmock.core.protocol.iso8583.DynamicMockRequestListener"
+                <request-listener class="com.dynamicmock.adapter.out.protocol.iso8583.DynamicMockRequestListener"
                                   logger="Q2">
                     <property name="server-port" value="%d"/>
                 </request-listener>

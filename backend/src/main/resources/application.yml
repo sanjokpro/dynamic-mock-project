@@ -8,17 +8,10 @@ spring:
   
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/dynamicmock}
-      database: dynamicmock
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/dynamicmock}
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -76,4 +69,8 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+
+app:
+  api:
+    key: ${API_KEY:default-dev-key}
 

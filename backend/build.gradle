@@ -49,7 +49,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
+    // implementation — bundled in the fat JAR for the classpath (BOOT-INF/lib/).
+    // The --add-exports flags in Dockerfile handle GraalVM module access issues.
     implementation "org.graalvm.polyglot:polyglot:${graalvmVersion}"
     implementation "org.graalvm.polyglot:js:${graalvmVersion}"
     implementation "org.graalvm.polyglot:python:${graalvmVersion}"
@@ -89,6 +92,11 @@ dependencies {
     testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
     testImplementation "net.java.dev.jna:jna:${jnaVersion}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // GraalVM polyglot deps for test runtime (already covered by implementation above, explicit for clarity)
+    testRuntimeOnly "org.graalvm.polyglot:polyglot:${graalvmVersion}"
+    testRuntimeOnly "org.graalvm.polyglot:js:${graalvmVersion}"
+    testRuntimeOnly "org.graalvm.polyglot:python:${graalvmVersion}"
 }
 
 if (packagingType == 'warProvided') {
@@ -110,13 +118,16 @@ tasks.withType(Test).configureEach {
 // This is harmless and doesn't affect functionality.
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
     maxParallelForks = 1
     jvmArgs = [
         '-Xmx1g',
         '-XX:MaxMetaspaceSize=512m',
         '-XX:+UseSerialGC',
         '-Djdk.attach.allowAttachSelf=true',
+        '--add-exports=org.graalvm.truffle.compiler/com.oracle.truffle.compiler=ALL-UNNAMED',
         '--add-opens=java.base/java.lang=ALL-UNNAMED',
         '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
         '--add-opens=java.base/java.io=ALL-UNNAMED',

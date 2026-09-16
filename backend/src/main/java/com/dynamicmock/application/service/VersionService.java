@@ -86,7 +86,7 @@ public class VersionService {
         
         // Update registry if active
         if (wasActive) {
-            routeRegistry.unregister(route.getMethod(), route.getPath());
+            routeRegistry.unregister(route);
             routeRegistry.register(route);
         }
         

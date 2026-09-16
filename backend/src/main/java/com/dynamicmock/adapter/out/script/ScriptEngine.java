@@ -41,9 +41,12 @@ public class ScriptEngine {
         this.allowIO = allowIO;
         
         // Create shared engine for better performance
+        // Running from an exploded JAR (flat classpath) avoids the NPE in
+        // Engine$ClassPathIsolation.collectClassPathJars that occurs with fat JARs.
         this.engine = Engine.newBuilder()
-            .option("engine.WarnInterpreterOnly", "false")
             .build();
+        log.info("GraalVM Polyglot Engine initialized successfully");
+        log.info("ScriptEngine bean created");
     }
     
     /**
@@ -55,16 +58,18 @@ public class ScriptEngine {
         }
         
         validateLanguage(language);
-        if (!isLanguageAvailable(language)) {
-            throw new ScriptExecutionException(
-                "Language '" + language + "' is not available in this JVM.",
-                null
-            );
-        }
         
         Instant startTime = Instant.now();
         
         try (Context polyglotContext = createContext()) {
+            // Check if language is available
+            if (!polyglotContext.getEngine().getLanguages().containsKey(language)) {
+                throw new ScriptExecutionException(
+                    "Language '" + language + "' is not available in this JVM.",
+                    null
+                );
+            }
+
             // Expose context to script
             Value bindings = polyglotContext.getBindings(language);
             bindings.putMember("request", createRequestObject(polyglotContext, context, language));

@@ -122,11 +122,11 @@ public class RouteService {
             if (route.getActive()) {
                 routeRegistry.register(route);
             } else {
-                routeRegistry.unregister(route.getMethod(), route.getPath());
+                routeRegistry.unregister(route);
             }
         } else if (route.getActive()) {
             // Re-register if active to update the route
-            routeRegistry.unregister(route.getMethod(), route.getPath());
+            routeRegistry.unregister(route);
             routeRegistry.register(route);
         }
         
@@ -162,7 +162,7 @@ public class RouteService {
         
         // Remove from registry if active
         if (Boolean.TRUE.equals(route.getActive())) {
-            routeRegistry.unregister(route.getMethod(), route.getPath());
+            routeRegistry.unregister(route);
         }
         
         // Delete version history
@@ -202,7 +202,7 @@ public class RouteService {
         route.setUpdatedAt(LocalDateTime.now());
         route = repository.save(route);
         
-        routeRegistry.unregister(route.getMethod(), route.getPath());
+        routeRegistry.unregister(route);
         log.info("Deactivated route: {} {} {}", route.getMethod(), route.getPath(), route.getId());
         
         return toResponse(route);

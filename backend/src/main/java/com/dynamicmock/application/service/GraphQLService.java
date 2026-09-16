@@ -4,6 +4,7 @@ import com.dynamicmock.adapter.in.web.dto.GraphQLEndpointRequest;
 import com.dynamicmock.adapter.out.script.ScriptContext;
 import com.dynamicmock.adapter.out.script.ScriptEngine;
 import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
+import com.dynamicmock.application.service.TrafficLogger;
 import com.dynamicmock.domain.entity.GraphQLEndpoint;
 import com.dynamicmock.domain.entity.GraphQLEndpoint.ResolverConfig;
 import com.dynamicmock.domain.port.out.GraphQLEndpointRepository;
@@ -37,6 +38,7 @@ public class GraphQLService {
     private final ResponseTemplateEngine templateEngine;
     private final ScriptEngine scriptEngine;
     private final ObjectMapper objectMapper;
+    private final TrafficLogger trafficLogger;
     
     // Cache for compiled GraphQL schemas
     private final Map<String, GraphQL> graphqlCache = new ConcurrentHashMap<>();
@@ -122,6 +124,7 @@ public class GraphQLService {
      * Execute a GraphQL query/mutation against an endpoint
      */
     public Map<String, Object> execute(String endpointId, String query, String operationName, Map<String, Object> variables) {
+        long startTime = System.currentTimeMillis();
         GraphQL graphql = graphqlCache.get(endpointId);
         if (graphql == null) {
             GraphQLEndpoint endpoint = findById(endpointId);
@@ -141,9 +144,20 @@ public class GraphQLService {
         if (result.getData() != null) {
             response.put("data", result.getData());
         }
-        if (!result.getErrors().isEmpty()) {
+        boolean hasErrors = !result.getErrors().isEmpty();
+        if (hasErrors) {
             response.put("errors", result.getErrors());
         }
+        
+        trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
+            .protocol("GRAPHQL")
+            .resourceId(endpointId)
+            .method(operationName != null ? operationName : query.substring(0, Math.min(query.length(), 50)))
+            .path("/graphql")
+            .status(hasErrors ? 400 : 200)
+            .durationMs(System.currentTimeMillis() - startTime)
+            .matchName(operationName != null ? operationName : "Anonymous")
+            .build());
         
         return response;
     }

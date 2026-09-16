@@ -127,7 +127,7 @@ class RouteServiceTest {
         routeService.deleteRoute("test-id");
         
         verify(repository, times(1)).findById("test-id");
-        verify(routeRegistry, times(1)).unregister("GET", "/test");
+        verify(routeRegistry, times(1)).unregister(any(MockRoute.class));
         verify(repository, times(1)).deleteById("test-id");
         verify(versionRepository, times(1)).deleteByRouteId("test-id");
     }
@@ -167,7 +167,7 @@ class RouteServiceTest {
         ArgumentCaptor<MockRoute> routeCaptor = ArgumentCaptor.forClass(MockRoute.class);
         verify(repository, times(1)).save(routeCaptor.capture());
         assertFalse(routeCaptor.getValue().getActive());
-        verify(routeRegistry, times(1)).unregister("GET", "/test");
+        verify(routeRegistry, times(1)).unregister(any(MockRoute.class));
     }
     
     @Test
@@ -181,8 +181,7 @@ class RouteServiceTest {
         
         routeService.updateRoute("test-id", request);
         
-        verify(routeRegistry, times(1)).unregister(anyString(), anyString());
+        verify(routeRegistry, times(1)).unregister(any(MockRoute.class));
         verify(routeRegistry, times(1)).register(any(MockRoute.class));
     }
 }
-
