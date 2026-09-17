@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+:root {
+  /* Default light theme */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e2e8f0;
+  --accent-foreground: #1e293b;
+  --border: #e2e8f0;
+  --ring: #3b82f6;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --sidebar-bg: #f8fafc;
+  --sidebar-border: #e2e8f0;
+  --panel-bg: #ffffff;
+  --panel-header-bg: #f8fafc;
+  --code-bg: #1e293b;
+  --code-foreground: #e2e8f0;
+}
+
+.dark {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --border: #1e293b;
+  --ring: #3b82f6;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #f1f5f9;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --card: #1e293b;
+  --card-foreground: #e2e8f0;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --sidebar-bg: #0f172a;
+  --sidebar-border: #1e293b;
+  --panel-bg: #0b1120;
+  --panel-header-bg: #0f172a;
+  --code-bg: #0f172a;
+  --code-foreground: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-panel-bg: var(--panel-bg);
+  --color-panel-header-bg: var(--panel-header-bg);
+  --color-code-bg: var(--code-bg);
+  --color-code-foreground: var(--code-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--foreground);
+}
+
+/* Resize handle styling */
+.resize-handle {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.resize-handle-horizontal::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 24px;
+  background: var(--primary);
+}
+
+.resize-handle-vertical::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 3px;
+  background: var(--primary);
+}
+
+.resize-handle:hover::after,
+.resize-handle:active::after {
+  opacity: 1;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: var(--primary) !important;
+}
+
+.resize-handle-horizontal {
+  cursor: col-resize;
+}
+
+.resize-handle-vertical {
+  cursor: row-resize;
+}
+
+/* Tab styling */
+.tab-active {
+  border-bottom-color: var(--primary);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+/* Panel shadows */
+.panel-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}

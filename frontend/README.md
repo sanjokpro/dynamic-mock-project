@@ -1,95 +1,36 @@
-# Dynamic Mock API Server - Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Angular 17+ frontend application for managing dynamic mock API routes.
+## Getting Started
 
-## Features
-
-- **Route Management**: Create, edit, delete, and activate/deactivate mock routes
-- **Monaco Editor**: Code editor with syntax highlighting for scripts and JSON templates
-- **Material Design**: Beautiful UI with custom Nepali rupee papernote theme
-- **Real-time Updates**: View route status and details in real-time
-
-## Prerequisites
-
-- Node.js 18+ and npm
-- Angular CLI 17+
-
-## Setup
-
-1. Install dependencies:
-```bash
-cd frontend
-npm install
-```
-
-2. Start the development server:
-```bash
-npm start
-```
-
-The application will be available at `http://localhost:4200`
-
-## Build
-
-To build for production:
+First, run the development server:
 
 ```bash
-npm run build
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-The build artifacts will be stored in the `dist/` directory.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Configuration
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-The API base URL is configured in `src/app/services/route.service.ts`. By default, it points to `http://localhost:8080/api/routes`.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-To change the API URL, update the `apiUrl` property in the `RouteService` class.
+## Learn More
 
-## Project Structure
+To learn more about Next.js, take a look at the following resources:
 
-```
-frontend/
-├── src/
-│   ├── app/
-│   │   ├── models/          # Data models/interfaces
-│   │   ├── services/        # API services
-│   │   ├── routes/          # Route management components
-│   │   │   ├── route-list/      # Route list component
-│   │   │   ├── route-form/      # Create/edit route form
-│   │   │   └── route-detail/    # Route detail view
-│   │   ├── shared/          # Shared components
-│   │   │   └── monaco-editor/   # Monaco Editor wrapper
-│   │   ├── app.component.ts     # Main app component
-│   │   └── app.routes.ts        # Routing configuration
-│   ├── styles.scss          # Global styles and theme
-│   └── index.html           # Main HTML file
-├── angular.json             # Angular CLI configuration
-├── package.json             # Dependencies
-└── tsconfig.json            # TypeScript configuration
-```
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Development
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Running unit tests
+## Deploy on Vercel
 
-```bash
-npm test
-```
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-### Code scaffolding
-
-Run `ng generate component component-name` to generate a new component.
-
-## Monaco Editor
-
-The application uses Monaco Editor (the same editor that powers VS Code) for editing scripts and JSON templates. The editor is loaded from CDN and supports:
-
-- JavaScript syntax highlighting
-- Python syntax highlighting
-- JSON syntax highlighting
-- Code completion
-- Error detection
-
-## Theme
-
-The application uses a custom Angular Material theme inspired by Nepali rupee papernote colors, featuring warm, earthy tones that create a professional and elegant appearance.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
