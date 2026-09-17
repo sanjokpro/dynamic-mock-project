@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/graphql")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class GraphQLController {
     
     private final GraphQLService graphQLService;

@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/grpc")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class GrpcController {
     
     private final GrpcService grpcService;

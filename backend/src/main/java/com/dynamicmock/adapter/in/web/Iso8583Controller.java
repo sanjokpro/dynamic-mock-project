@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/iso8583")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class Iso8583Controller {
     
     private final Iso8583Service iso8583Service;

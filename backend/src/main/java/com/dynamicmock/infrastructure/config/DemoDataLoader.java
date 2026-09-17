@@ -4,6 +4,7 @@ import com.dynamicmock.adapter.in.web.dto.CreateRouteRequest;
 import com.dynamicmock.adapter.in.web.dto.RouteResponse;
 import com.dynamicmock.application.service.RouteService;
 import com.dynamicmock.application.service.ScenarioService;
+import com.dynamicmock.domain.entity.MockRoute;
 import com.dynamicmock.domain.entity.Scenario;
 import com.dynamicmock.domain.port.out.MockRouteRepository;
 import com.dynamicmock.domain.port.out.ScenarioRepository;
@@ -30,20 +31,45 @@ public class DemoDataLoader implements CommandLineRunner {
     private final ScenarioService scenarioService;
     private final MockRouteRepository mockRouteRepository;
     private final ScenarioRepository scenarioRepository;
+    private final com.dynamicmock.application.service.WorkspaceCollectionService collectionService;
+    private final com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
 
     @Override
     public void run(String... args) {
         log.info("Demo profile active - loading sample routes and scenarios");
-        seedHelloRoute();
+        RouteResponse hello = seedHelloRoute();
         seedOrderScenario();
+        seedWorkspace(hello);
         scenarioService.loadActiveScenarios();
     }
 
-    private void seedHelloRoute() {
-        boolean routeExists = !mockRouteRepository.findByPathAndMethod("/hello", "GET").isEmpty();
-        if (routeExists) {
+    private void seedWorkspace(RouteResponse helloRoute) {
+        if (environmentService.getAllEnvironments().isEmpty()) {
+            environmentService.createEnvironment("DEV", Map.of(
+                "BASE_URL", "http://localhost:8080/mock",
+                "API_KEY", "demo-key-123"
+            ));
+            log.info("Created demo environment 'DEV'");
+        }
+
+        if (collectionService.getCollectionsByUserId("default-user").isEmpty()) {
+            com.dynamicmock.domain.entity.Collection col = collectionService.createCollection("Sample Collection", "default-user", "A collection to get you started");
+            if (helloRoute != null) {
+                collectionService.addItemToCollection(col.getId(), com.dynamicmock.domain.entity.Collection.CollectionItem.builder()
+                    .protocol("HTTP")
+                    .resourceId(helloRoute.getId())
+                    .name("Hello API")
+                    .build());
+            }
+            log.info("Created demo collection for 'default-user'");
+        }
+    }
+
+    private RouteResponse seedHelloRoute() {
+        List<MockRoute> routes = mockRouteRepository.findByPathAndMethod("/hello", "GET");
+        if (!routes.isEmpty()) {
             log.info("Demo hello route already present");
-            return;
+            return RouteResponse.from(routes.get(0));
         }
 
         CreateRouteRequest request = new CreateRouteRequest();
@@ -61,6 +87,7 @@ public class DemoDataLoader implements CommandLineRunner {
         routeService.activateRoute(created.getId());
 
         log.info("Created demo hello route at /mock/hello");
+        return created;
     }
 
     private void seedOrderScenario() {
