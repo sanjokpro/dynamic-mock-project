@@ -77,3 +77,11 @@ export interface ExecutionEvent {
   requestBody?: string;
   responseBody?: string;
 }
+
+export interface ImportReport {
+  environments: number;
+  collections: number;
+  routes: number;
+  warnings: string[];
+  errors: string[];
+}

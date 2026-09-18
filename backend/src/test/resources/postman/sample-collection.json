@@ -1,0 +1,86 @@
+{
+  "info": {
+    "name": "Petstore API",
+    "description": "Import fixture collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.example.com/users/:id?verbose=true",
+              "host": ["api", "example", "com"],
+              "path": ["users", ":id"],
+              "query": [
+                { "key": "verbose", "value": "true", "description": "" }
+              ]
+            },
+            "header": [
+              { "key": "X-Api-Version", "value": "v2" }
+            ],
+            "response": [
+              {
+                "name": "Success",
+                "code": 200,
+                "body": "{\"id\": \"{{$guid}}\", \"name\": \"{{$randomFirstName}} {{$randomLastName}}\"}",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ]
+              },
+              {
+                "name": "Not Found",
+                "code": 404,
+                "body": "{\"error\": \"user not found\"}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "https://api.example.com/users",
+              "host": ["api", "example", "com"],
+              "path": ["users"]
+            },
+            "body": { "mode": "raw", "raw": "{\"name\": \"Jane\"}" }
+          },
+          "response": [
+            {
+              "name": "Created",
+              "code": 201,
+              "body": "{\"id\": \"{{$randomUUID}}\", \"created\": true}"
+            }
+          ]
+        },
+        {
+          "name": "Legacy Script Request",
+          "request": {
+            "method": "GET",
+            "url": "https://api.example.com/legacy"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["console.log('hi')"] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "https://api.example.com/health"
+      }
+    }
+  ],
+  "variable": []
+}

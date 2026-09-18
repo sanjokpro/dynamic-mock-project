@@ -9,6 +9,7 @@ import { useRoutes } from '@/hooks/useRoutes';
 import { useCollections } from '@/hooks/useCollections';
 import { cn } from '@/lib/utils';
 import { MockRoute } from '@/types';
+import { ImportModal } from './ImportModal';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'text-blue-500',
@@ -28,6 +29,7 @@ export function Header() {
   const userId = 'default-user';
   const { collections } = useCollections(userId);
   const [envDropdownOpen, setEnvDropdownOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -222,7 +224,10 @@ export function Header() {
             <Play className="h-3 w-3" />
             <span>Runner</span>
           </button>
-          <button className="flex items-center gap-1 px-2 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-1 px-2 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+          >
             <Import className="h-3 w-3" />
             <span>Import</span>
           </button>
@@ -362,6 +367,8 @@ export function Header() {
           <User className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </header>
   );
 }

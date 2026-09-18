@@ -1,6 +1,10 @@
 spring:
   application:
     name: dynamic-mock-server
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 25MB
   
   autoconfigure:
     exclude:

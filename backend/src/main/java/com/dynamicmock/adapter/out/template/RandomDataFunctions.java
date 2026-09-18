@@ -17,6 +17,32 @@ public class RandomDataFunctions {
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final String EMAIL_DOMAINS = "example.com,test.com,mock.com,local.dev";
     
+    private static final String[] FIRST_NAMES = {
+        "John", "Jane", "Michael", "Emily", "David", "Sarah", "James", "Jessica",
+        "Robert", "Karen", "William", "Lisa", "Joseph", "Nancy", "Thomas", "Betty",
+        "Charles", "Sandra", "Christopher", "Ashley"
+    };
+
+    private static final String[] LAST_NAMES = {
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
+        "Thomas", "Taylor", "Moore", "Jackson", "Martin"
+    };
+
+    /**
+     * Generate a random first name
+     */
+    public static String randomFirstName() {
+        return FIRST_NAMES[RANDOM.nextInt(FIRST_NAMES.length)];
+    }
+
+    /**
+     * Generate a random last name
+     */
+    public static String randomLastName() {
+        return LAST_NAMES[RANDOM.nextInt(LAST_NAMES.length)];
+    }
+
     /**
      * Generate a random integer between min (inclusive) and max (inclusive)
      */

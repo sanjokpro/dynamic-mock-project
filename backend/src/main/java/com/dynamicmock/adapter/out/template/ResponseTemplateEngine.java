@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -143,6 +144,38 @@ public class ResponseTemplateEngine {
             }
         });
         
+        // ===== Postman compatibility aliases =====
+        // NOTE: Handlebars helpers take precedence over context keys. For 'uuid' and 'now'
+        // we must therefore yield to a context value when one exists, so that route-level
+        // variables (path variables, script vars) named 'uuid'/'now' are not shadowed.
+        handlebars.registerHelper("uuid", (context, options) -> {
+            Object model = options.context.model();
+            Object existing = (model instanceof Map) ? ((Map<?, ?>) model).get("uuid") : null;
+            return existing != null ? existing : RandomDataFunctions.randomUUID();
+        });
+
+        handlebars.registerHelper("now", (context, options) -> {
+            Object model = options.context.model();
+            Object existing = (model instanceof Map) ? ((Map<?, ?>) model).get("now") : null;
+            return existing != null ? existing : RandomDataFunctions.timestamp();
+        });
+
+        handlebars.registerHelper("$guid", (context, options) ->
+            RandomDataFunctions.randomUUID()
+        );
+
+        handlebars.registerHelper("$isoTimestamp", (context, options) ->
+            Instant.now().toString()
+        );
+
+        handlebars.registerHelper("$randomFirstName", (context, options) ->
+            RandomDataFunctions.randomFirstName()
+        );
+
+        handlebars.registerHelper("$randomLastName", (context, options) ->
+            RandomDataFunctions.randomLastName()
+        );
+
         // Register conditional helpers
         handlebars.registerHelpers(ConditionalHelpers.class);
     }

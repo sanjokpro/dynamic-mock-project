@@ -1,0 +1,8 @@
+{
+  "name": "UAT",
+  "values": [
+    { "key": "BASE_URL", "value": "https://uat.example.com", "enabled": true },
+    { "key": "API_KEY", "value": "secret-123", "enabled": true },
+    { "key": "DEBUG_MODE", "value": "true", "enabled": false }
+  ]
+}
