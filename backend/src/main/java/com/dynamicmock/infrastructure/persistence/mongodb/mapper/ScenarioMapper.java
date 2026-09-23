@@ -42,7 +42,7 @@ public class ScenarioMapper {
                 .preScript(entity.getPreScript())
                 .postScript(entity.getPostScript())
                 .scriptLanguage(entity.getScriptLanguage())
-                .transitions(entity.getTransitions().stream().map(this::transitionToDomain).collect(Collectors.toList()))
+                .transitions(entity.getTransitions() != null ? entity.getTransitions().stream().map(this::transitionToDomain).collect(Collectors.toList()) : null)
                 .build();
     }
 
@@ -86,7 +86,7 @@ public class ScenarioMapper {
                 .preScript(domain.getPreScript())
                 .postScript(domain.getPostScript())
                 .scriptLanguage(domain.getScriptLanguage())
-                .transitions(domain.getTransitions().stream().map(this::transitionToEntity).collect(Collectors.toList()))
+                .transitions(domain.getTransitions() != null ? domain.getTransitions().stream().map(this::transitionToEntity).collect(Collectors.toList()) : null)
                 .build();
     }
 

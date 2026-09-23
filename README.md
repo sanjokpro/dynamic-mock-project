@@ -91,21 +91,20 @@ docker compose up --build
 ```
 
 What this does:
-- Builds the backend with GraalVM and starts `mock-server`, `mongo`, and `redis`
+- Builds the backend with GraalVM and starts `mock-server`, `mongo`, `redis`, `nginx`, and the Next.js `frontend`.
 - Enables the `demo` Spring profile, which auto-seeds example routes and a scenario
 - Persists Mongo/Redis data in named Docker volumes
-- Serves the Angular UI at `http://localhost:8080/`
-- You do NOT need Node locally; the Angular UI is built inside the Docker image
+- NGINX routes all API and Mock traffic to the backend, and serves the UI securely at `http://localhost/`
+- You do NOT need Node locally; the UI is built inside the Docker image
 
 Try it out:
 - `curl http://localhost:8080/mock/hello?name=Alex`
 - Scenario flow:
   - `curl http://localhost:8080/mock/orders/demo`
-  - `curl "http://localhost:8080/mock/orders/demo?action=pay"`
-  - `curl "http://localhost:8080/mock/orders/demo?action=ship"` (auto-resets after the final state)
+  - `curl "http://localhost/mock/orders/demo?action=ship"` (auto-resets after the final state)
 UI:
-- Open `http://localhost:8080/` for the web UI (served by Spring Boot)
-- API base remains `http://localhost:8080/api`
+- Open `http://localhost/` for the web UI
+- API base is available at `http://localhost/api`
 
 Stop the demo with `docker compose down` (add `--volumes` to wipe data).
 
@@ -136,6 +135,15 @@ gradle bootRun
 ```
 
 The server will start on `http://localhost:8080`
+
+### Local Dev with Docker Compose
+
+If you want to use Docker Compose for local development (with hot-reloading for the frontend and direct port access):
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+This maps `3000` (frontend), `8080` (backend), `27017` (mongo), and `6379` (redis) to your host.
 
 ### Frontend Setup (Dev Mode)
 

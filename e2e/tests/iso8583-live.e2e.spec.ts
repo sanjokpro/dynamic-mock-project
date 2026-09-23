@@ -63,11 +63,16 @@ test('ISO8583 live round-trip (standalone/Q2)', async () => {
 
   // Cleanup existing ISO endpoints to avoid port conflicts/reloads
   try {
-    const list = await fetch(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'}/api/iso8583/endpoints`);
+    const list = await fetch(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'}/api/iso8583/endpoints`, {
+      headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+    });
     if (list.ok) {
       const endpoints = await list.json();
       for (const ep of endpoints) {
-        await fetch(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'}/api/iso8583/endpoints/${ep.id}`, { method: 'DELETE' });
+        await fetch(`${process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080'}/api/iso8583/endpoints/${ep.id}`, { 
+          method: 'DELETE',
+          headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+        });
       }
     }
   } catch (e) {
@@ -78,7 +83,10 @@ test('ISO8583 live round-trip (standalone/Q2)', async () => {
   const base = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080';
   const createRes = await fetch(`${base}/api/iso8583/endpoints`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-API-KEY': process.env.API_KEY || 'default-dev-key'
+    },
     body: JSON.stringify({
       name: unique,
       description: 'Playwright ISO8583 live',
@@ -105,7 +113,10 @@ test('ISO8583 live round-trip (standalone/Q2)', async () => {
   const endpoint = await createRes.json();
 
   // Activate (idempotent)
-  await fetch(`${base}/api/iso8583/endpoints/${endpoint.id}/activate`, { method: 'POST' });
+  await fetch(`${base}/api/iso8583/endpoints/${endpoint.id}/activate`, { 
+    method: 'POST',
+    headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+  });
 
   // Give server a moment to start (Q2/standalone)
   await new Promise((res) => setTimeout(res, 1500));
@@ -142,6 +153,9 @@ test('ISO8583 live round-trip (standalone/Q2)', async () => {
   expect(respMsg.getField(39)).toBe('00');
 
   // Cleanup
-  await fetch(`http://localhost:8080/api/iso8583/endpoints/${endpoint.id}`, { method: 'DELETE' });
+  await fetch(`http://localhost:8080/api/iso8583/endpoints/${endpoint.id}`, { 
+    method: 'DELETE',
+    headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+  });
 });
 

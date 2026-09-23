@@ -9,6 +9,9 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    extraHTTPHeaders: {
+      'X-API-KEY': process.env.API_KEY || 'default-dev-key',
+    },
   },
   projects: [
     {

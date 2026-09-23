@@ -26,10 +26,14 @@ test('gRPC live call hits mock server (unary)', async () => {
   const methodName = 'SayHello';
   const port = await getFreePort();
 
+  const baseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080';
   // Create endpoint via REST
-  const createRes = await fetch('http://localhost:8080/api/grpc/endpoints', {
+  const createRes = await fetch(`${baseUrl}/api/grpc/endpoints`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-API-KEY': process.env.API_KEY || 'default-dev-key'
+    },
     body: JSON.stringify({
       name: unique,
       description: 'Playwright gRPC live',
@@ -59,7 +63,10 @@ test('gRPC live call hits mock server (unary)', async () => {
   const endpoint = await createRes.json();
 
   // Activate (idempotent)
-  await fetch(`http://localhost:8080/api/grpc/endpoints/${endpoint.id}/activate`, { method: 'POST' });
+  await fetch(`${baseUrl}/api/grpc/endpoints/${endpoint.id}/activate`, { 
+    method: 'POST',
+    headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+  });
 
   // Build dynamic client from proto
   // Generic client with JSON pass-through (server uses raw bytes)
@@ -89,6 +96,9 @@ test('gRPC live call hits mock server (unary)', async () => {
   expect(reply.message).toBe('Hello World');
 
   // Cleanup
-  await fetch(`http://localhost:8080/api/grpc/endpoints/${endpoint.id}`, { method: 'DELETE' });
+  await fetch(`${baseUrl}/api/grpc/endpoints/${endpoint.id}`, { 
+    method: 'DELETE',
+    headers: { 'X-API-KEY': process.env.API_KEY || 'default-dev-key' }
+  });
 });
 
