@@ -1,6 +1,7 @@
 # Java/Spring Boot
 **/build/
 **/target/
+backend/ci_build/
 *.class
 *.jar
 *.war
