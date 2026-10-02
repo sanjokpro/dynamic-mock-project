@@ -28,6 +28,8 @@ public class Iso8583EndpointMapper {
                 .headerLengthType(entity.getHeaderLengthType())
                 .encoding(entity.getEncoding())
                 .packagerConfig(entity.getPackagerConfig())
+                .packagerXmlContent(entity.getPackagerXmlContent())
+                .packagerName(entity.getPackagerName())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -52,6 +54,7 @@ public class Iso8583EndpointMapper {
                 .scriptEnabled(entity.getScriptEnabled())
                 .delayMs(entity.getDelayMs())
                 .enabled(entity.getEnabled())
+                .scenarioName(entity.getScenarioName())
                 .build();
     }
 
@@ -71,6 +74,8 @@ public class Iso8583EndpointMapper {
                 .headerLengthType(domain.getHeaderLengthType())
                 .encoding(domain.getEncoding())
                 .packagerConfig(domain.getPackagerConfig())
+                .packagerXmlContent(domain.getPackagerXmlContent())
+                .packagerName(domain.getPackagerName())
                 .active(domain.getActive())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
@@ -95,6 +100,7 @@ public class Iso8583EndpointMapper {
                 .scriptEnabled(domain.getScriptEnabled())
                 .delayMs(domain.getDelayMs())
                 .enabled(domain.getEnabled())
+                .scenarioName(domain.getScenarioName())
                 .build();
     }
 }

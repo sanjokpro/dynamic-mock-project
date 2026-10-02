@@ -49,7 +49,11 @@ public class Iso8583EndpointMongoEntity {
     private String encoding;
     
     private String packagerConfig;
-    
+
+    private String packagerXmlContent;
+
+    private String packagerName;
+
     private Boolean active;
     
     private LocalDateTime createdAt;
@@ -74,5 +78,6 @@ public class Iso8583EndpointMongoEntity {
         private Boolean scriptEnabled;
         private Integer delayMs;
         private Boolean enabled;
+        private String scenarioName;
     }
 }

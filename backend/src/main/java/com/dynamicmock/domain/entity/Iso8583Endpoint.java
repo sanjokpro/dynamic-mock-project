@@ -77,10 +77,22 @@ public class Iso8583Endpoint {
     private String encoding = "ASCII";
     
     /**
-     * Custom packager XML path (relative to cfg/).
+     * Custom packager XML path (relative to cfg/) — legacy field, kept for Q2 mode.
      */
     private String packagerConfig;
-    
+
+    /**
+     * Custom packager XML content (uploaded by user).
+     * When set, takes precedence over the bundled default packager.
+     * Stored inline in MongoDB — packager XMLs are typically 5-30 KB.
+     */
+    private String packagerXmlContent;
+
+    /**
+     * Display name for the uploaded packager (e.g. original filename).
+     */
+    private String packagerName;
+
     private Boolean active;
     
     private LocalDateTime createdAt;
@@ -112,5 +124,6 @@ public class Iso8583Endpoint {
         private Integer delayMs;
         @Builder.Default
         private Boolean enabled = true;
+        private String scenarioName;
     }
 }

@@ -5,6 +5,8 @@ import { X, Copy, Calendar, Clock, CheckSquare, Activity, Trash2 } from 'lucide-
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useRoutes } from '@/hooks/useRoutes';
 import { cn } from '@/lib/utils';
+import { useDialogs } from '@/context/DialogContext';
+import { toast } from 'sonner';
 
 interface RouteDrawerProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface RouteDrawerProps {
 export function RouteDrawer({ isOpen, onClose }: RouteDrawerProps) {
   const { activeRoute, setActiveRoute, setDrawerOpen } = useWorkspace();
   const { updateRoute, createRoute, deleteRoute } = useRoutes();
+  const { confirm } = useDialogs();
 
   const [localActive, setLocalActive] = useState(false);
   const [localDelayMs, setLocalDelayMs] = useState(0);
@@ -44,8 +47,9 @@ export function RouteDrawer({ isOpen, onClose }: RouteDrawerProps) {
         name: localName,
       });
       setIsDirty(false);
-    } catch (e) {
-      console.error('Failed to save route settings:', e);
+      toast.success('Route updated');
+    } catch (e: any) {
+      toast.error('Failed to save route settings: ' + e.message);
     } finally {
       setIsSaving(false);
     }
@@ -62,20 +66,27 @@ export function RouteDrawer({ isOpen, onClose }: RouteDrawerProps) {
       };
       await createRoute(newRouteData);
       onClose();
-    } catch (e) {
-      console.error('Failed to duplicate route:', e);
+      toast.success('Route duplicated');
+    } catch (e: any) {
+      toast.error('Failed to duplicate route: ' + e.message);
     }
   };
 
   const handleDelete = async () => {
     if (!activeRoute) return;
-    if (confirm('Are you sure you want to delete this stub?')) {
+    const confirmed = await confirm({
+      title: 'Delete Stub',
+      message: 'Are you sure you want to delete this stub?',
+      confirmText: 'Delete'
+    });
+    if (confirmed) {
       try {
         await deleteRoute(activeRoute.id);
         setActiveRoute(null);
         setDrawerOpen(false);
-      } catch (e) {
-        console.error('Failed to delete route:', e);
+        toast.success('Route deleted');
+      } catch (e: any) {
+        toast.error('Failed to delete route: ' + e.message);
       }
     }
   };

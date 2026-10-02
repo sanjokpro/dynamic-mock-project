@@ -7,12 +7,13 @@ import { RequestPanel } from './RequestPanel';
 import { ResponsePanel } from './ResponsePanel';
 import { BottomBar } from './BottomBar';
 import { RouteDrawer } from './RouteDrawer';
+import { ScenarioEditor } from './scenarios/ScenarioEditor';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 export function WorkspaceLayout() {
-  const { isDrawerOpen, setDrawerOpen, panelLayout, isSidebarOpen } = useWorkspace();
+  const { isDrawerOpen, setDrawerOpen, panelLayout, isSidebarOpen, activeView } = useWorkspace();
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [bottomPanelHeight, setBottomPanelHeight] = useState(200);
   const [bottomPanelOpen, setBottomPanelOpen] = useState(true);
@@ -120,36 +121,46 @@ export function WorkspaceLayout() {
               isVertical ? "flex-col" : "flex-row"
             )}
           >
-            {/* Request Panel */}
-            <div 
-              style={isVertical ? { height: `${verticalRatio}%` } : { width: `${horizontalRatio}%` }}
-              className="overflow-hidden min-h-0 min-w-0"
-            >
-              <ErrorBoundary fallback={<div className="p-4 text-red-500">Request Panel Error</div>}>
-                <RequestPanel />
-              </ErrorBoundary>
-            </div>
+            {activeView === 'scenarios' ? (
+              <div className="flex-1 w-full h-full overflow-hidden min-h-0 min-w-0">
+                <ErrorBoundary fallback={<div className="p-4 text-red-500">Scenario Editor Error</div>}>
+                  <ScenarioEditor />
+                </ErrorBoundary>
+              </div>
+            ) : (
+              <>
+                {/* Request Panel */}
+                <div 
+                  style={isVertical ? { height: `${verticalRatio}%` } : { width: `${horizontalRatio}%` }}
+                  className="overflow-hidden min-h-0 min-w-0"
+                >
+                  <ErrorBoundary fallback={<div className="p-4 text-red-500">Request Panel Error</div>}>
+                    <RequestPanel />
+                  </ErrorBoundary>
+                </div>
 
-            {/* Main Resize Handle */}
-            <div 
-              onMouseDown={startResizingMain}
-              className={cn(
-                "shrink-0 hover:bg-primary/40 transition-colors bg-border resize-handle",
-                isVertical 
-              ? "h-[4px] cursor-row-resize resize-handle-vertical" 
-              : "w-[4px] cursor-col-resize resize-handle-horizontal"
-              )}
-            />
+                {/* Main Resize Handle */}
+                <div 
+                  onMouseDown={startResizingMain}
+                  className={cn(
+                    "shrink-0 hover:bg-primary/40 transition-colors bg-border resize-handle",
+                    isVertical 
+                  ? "h-[4px] cursor-row-resize resize-handle-vertical" 
+                  : "w-[4px] cursor-col-resize resize-handle-horizontal"
+                  )}
+                />
 
-            {/* Response Panel */}
-            <div 
-              style={isVertical ? { height: `${100 - verticalRatio}%` } : { width: `${100 - horizontalRatio}%` }}
-              className="overflow-hidden min-h-0 min-w-0"
-            >
-              <ErrorBoundary fallback={<div className="p-4 text-red-500">Response Panel Error</div>}>
-                <ResponsePanel />
-              </ErrorBoundary>
-            </div>
+                {/* Response Panel */}
+                <div 
+                  style={isVertical ? { height: `${100 - verticalRatio}%` } : { width: `${100 - horizontalRatio}%` }}
+                  className="overflow-hidden min-h-0 min-w-0"
+                >
+                  <ErrorBoundary fallback={<div className="p-4 text-red-500">Response Panel Error</div>}>
+                    <ResponsePanel />
+                  </ErrorBoundary>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Bottom Panel Resize Handle */}

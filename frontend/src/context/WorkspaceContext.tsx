@@ -10,6 +10,8 @@ interface WorkspaceContextType {
   setActiveRoute: (route: MockRoute | null) => void;
   activeEnvironment: Environment | null;
   setActiveEnvironment: (env: Environment | null) => void;
+  activeView: 'routes' | 'scenarios';
+  setActiveView: (view: 'routes' | 'scenarios') => void;
   lastResponse: TestResponse | null;
   setLastResponse: (response: TestResponse | null) => void;
   isDrawerOpen: boolean;
@@ -25,6 +27,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeRoute, setActiveRoute] = useState<MockRoute | null>(null);
   const [activeEnvironment, setActiveEnvironment] = useState<Environment | null>(null);
+  const [activeView, setActiveView] = useState<'routes' | 'scenarios'>('routes');
   const [lastResponse, setLastResponse] = useState<TestResponse | null>(null);
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -38,6 +41,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setActiveRoute,
       activeEnvironment,
       setActiveEnvironment,
+      activeView,
+      setActiveView,
       lastResponse,
       setLastResponse,
       isDrawerOpen,

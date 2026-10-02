@@ -3,8 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { useScenarios } from '@/hooks/useScenarios';
 import { useTheme } from '@/context/ThemeContext';
-import { Loader2, GitBranch, Play, StopCircle, RotateCcw, Trash2, ArrowRight, Clock, Code, LayoutGrid, List } from 'lucide-react';
+import { Loader2, GitBranch, Play, StopCircle, RotateCcw, Trash2, ArrowRight, Clock, Code, LayoutGrid, List, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDialogs } from '@/context/DialogContext';
+import { toast } from 'sonner';
 import {
   ReactFlow,
   Node,
@@ -20,8 +22,9 @@ import '@xyflow/react/dist/style.css';
 type ViewMode = 'cards' | 'flow';
 
 export function ScenarioEditor() {
-  const { scenarios, isLoading, updateScenario, deleteScenario } = useScenarios();
+  const { scenarios, isLoading, createScenario, updateScenario, deleteScenario } = useScenarios();
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const { prompt, confirm } = useDialogs();
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   if (isLoading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin" /></div>;
@@ -35,6 +38,36 @@ export function ScenarioEditor() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">{scenarios.length} scenario{scenarios.length !== 1 ? 's' : ''}</span>
+          <button 
+            onClick={async () => {
+              const name = await prompt({ title: 'New Scenario', placeholder: 'Scenario Name' });
+              if (name) {
+                try {
+                  await createScenario({
+                    name,
+                    description: 'New scenario',
+                    active: false,
+                    initialState: 'START',
+                    states: [
+                      {
+                        name: 'START',
+                        description: 'Initial state',
+                        responseStatus: 200,
+                        delayMs: 0,
+                        transitions: []
+                      }
+                    ]
+                  });
+                  toast.success('Scenario created');
+                } catch (e: any) {
+                  toast.error('Failed to create scenario: ' + e.message);
+                }
+              }
+            }}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors ml-2"
+          >
+            <Plus className="h-3 w-3" /> New
+          </button>
         </div>
       </div>
 
@@ -186,21 +219,21 @@ export function ScenarioEditor() {
                       {/* Actions */}
                       <div className="px-4 pb-4 flex items-center gap-2">
                         {isActive ? (
-                          <button onClick={async () => { try { await updateScenario({ id: scenario.id, active: false }); } catch (e) { console.error(e); } }}
+                          <button onClick={async () => { try { await updateScenario({ id: scenario.id, active: false }); toast.success('Scenario deactivated'); } catch (e: any) { toast.error('Failed: ' + e.message); } }}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 transition-colors">
                             <StopCircle className="h-3 w-3" /> Deactivate
                           </button>
                         ) : (
-                          <button onClick={async () => { try { await updateScenario({ id: scenario.id, active: true }); } catch (e) { console.error(e); } }}
+                          <button onClick={async () => { try { await updateScenario({ id: scenario.id, active: true }); toast.success('Scenario activated'); } catch (e: any) { toast.error('Failed: ' + e.message); } }}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors">
                             <Play className="h-3 w-3" /> Activate
                           </button>
                         )}
-                        <button onClick={async () => { try { await updateScenario({ id: scenario.id, currentState: scenario.initialState, executionCount: 0 }); } catch (e) { console.error(e); } }}
+                        <button onClick={async () => { try { await updateScenario({ id: scenario.id, currentState: scenario.initialState, executionCount: 0 }); toast.success('Scenario reset'); } catch (e: any) { toast.error('Failed: ' + e.message); } }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-accent text-foreground hover:bg-accent/80 transition-colors">
                           <RotateCcw className="h-3 w-3" /> Reset
                         </button>
-                        <button onClick={async () => { if (confirm(`Delete scenario "${scenario.name}"?`)) { try { await deleteScenario(scenario.id); setSelectedScenarioId(null); } catch (e) { console.error(e); } } }}
+                        <button onClick={async () => { const confirmed = await confirm({ title: 'Delete Scenario', message: `Delete scenario "${scenario.name}"?`, confirmText: 'Delete' }); if (confirmed) { try { await deleteScenario(scenario.id); setSelectedScenarioId(null); toast.success('Scenario deleted'); } catch (e: any) { toast.error('Failed: ' + e.message); } } }}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors ml-auto">
                           <Trash2 className="h-3 w-3" /> Delete
                         </button>

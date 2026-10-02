@@ -1,9 +1,14 @@
 package com.dynamicmock.adapter.out.protocol.iso8583;
 
+import com.dynamicmock.adapter.out.script.RedisBackedStateMap;
 import com.dynamicmock.adapter.out.script.ScriptContext;
 import com.dynamicmock.adapter.out.script.ScriptEngine;
 import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
+import com.dynamicmock.application.service.ScenarioService;
 import com.dynamicmock.domain.entity.Iso8583Endpoint;
+import com.dynamicmock.domain.entity.Scenario.ScenarioState;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +16,7 @@ import org.jpos.iso.ISOException;
 import org.jpos.iso.ISOMsg;
 import org.jpos.iso.ISOPackager;
 import org.jpos.iso.packager.GenericPackager;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -46,6 +52,9 @@ public class Iso8583Server {
     private final ResponseTemplateEngine templateEngine;
     private final ScriptEngine scriptEngine;
     private final Q2ServerManager q2ServerManager;
+    private final ScenarioService scenarioService;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
     
     // Standalone mode: Track running servers by port
     private final Map<Integer, ServerSocket> standaloneServers = new ConcurrentHashMap<>();
@@ -173,6 +182,20 @@ public class Iso8583Server {
     }
     
     private ISOPackager createPackager(Iso8583Endpoint endpoint) {
+        // 1. Custom uploaded packager takes precedence
+        if (endpoint.getPackagerXmlContent() != null && !endpoint.getPackagerXmlContent().isBlank()) {
+            try {
+                InputStream customStream = new java.io.ByteArrayInputStream(
+                        endpoint.getPackagerXmlContent().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                log.info("Using custom packager '{}' for endpoint '{}'",
+                        endpoint.getPackagerName(), endpoint.getName());
+                return new GenericPackager(customStream);
+            } catch (ISOException e) {
+                log.warn("Custom packager '{}' is invalid, falling back to default: {}",
+                        endpoint.getPackagerName(), e.getMessage());
+            }
+        }
+        // 2. Bundled default packager
         try {
             InputStream packagerStream = getClass().getResourceAsStream("/iso8583/packager.xml");
             if (packagerStream != null) {
@@ -180,7 +203,7 @@ public class Iso8583Server {
             }
             return new org.jpos.iso.packager.ISO87APackager();
         } catch (ISOException e) {
-            log.warn("Failed to create custom packager, using default: {}", e.getMessage());
+            log.warn("Failed to load bundled packager, using ISO87A default: {}", e.getMessage());
             return new org.jpos.iso.packager.ISO87APackager();
         }
     }
@@ -265,7 +288,7 @@ public class Iso8583Server {
         }
     }
     
-    private ISOMsg processMessage(ISOMsg request, Iso8583Endpoint endpoint) throws ISOException {
+    ISOMsg processMessage(ISOMsg request, Iso8583Endpoint endpoint) throws ISOException {
         String mti = request.getMTI();
         log.debug("Processing ISO8583 message: MTI={}", mti);
 
@@ -298,13 +321,56 @@ public class Iso8583Server {
 
         log.debug("Matched mock '{}' for MTI={}", matched.getName(), mti);
 
+        // Fetch ScenarioState if applicable
+        ScenarioState scenarioState = null;
+        if (matched.getScenarioName() != null && !matched.getScenarioName().isEmpty()) {
+            scenarioState = scenarioService.getCurrentStateObject(matched.getScenarioName());
+            if (scenarioState != null) {
+                log.debug("Using scenario '{}' state '{}'", matched.getScenarioName(), scenarioState.getName());
+            }
+        }
+
         // Clone request to create response
         ISOMsg response = (ISOMsg) request.clone();
 
-        // Apply delay
-        if (matched.getDelayMs() != null && matched.getDelayMs() > 0) {
+        // Overrides from Scenario State
+        Integer effectiveDelayMs = scenarioState != null && scenarioState.getDelayMs() != null 
+                ? scenarioState.getDelayMs() : matched.getDelayMs();
+        
+        String effectiveScript = scenarioState != null && scenarioState.getPostScript() != null 
+                ? scenarioState.getPostScript() : matched.getScript();
+        
+        String effectiveScriptLanguage = scenarioState != null && scenarioState.getScriptLanguage() != null 
+                ? scenarioState.getScriptLanguage() : matched.getScriptLanguage();
+        
+        boolean effectiveScriptEnabled = (scenarioState != null && scenarioState.getPostScript() != null) 
+                || Boolean.TRUE.equals(matched.getScriptEnabled());
+
+        Map<Integer, String> effectiveResponseFields = new HashMap<>();
+        if (matched.getResponseFields() != null) {
+            effectiveResponseFields.putAll(matched.getResponseFields());
+        }
+        
+        if (scenarioState != null && scenarioState.getResponseTemplate() != null && !scenarioState.getResponseTemplate().trim().isEmpty()) {
             try {
-                Thread.sleep(matched.getDelayMs());
+                String templateContent = scenarioState.getResponseTemplate().trim();
+                if (templateContent.startsWith("{")) {
+                    Map<String, String> parsedFields = objectMapper.readValue(templateContent, new TypeReference<Map<String, String>>() {});
+                    parsedFields.forEach((k, v) -> {
+                        try {
+                            effectiveResponseFields.put(Integer.parseInt(k), v);
+                        } catch (NumberFormatException ignored) {}
+                    });
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse ISO8583 Scenario response template as JSON: {}", e.getMessage());
+            }
+        }
+
+        // Apply delay
+        if (effectiveDelayMs != null && effectiveDelayMs > 0) {
+            try {
+                Thread.sleep(effectiveDelayMs);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -316,13 +382,13 @@ public class Iso8583Server {
         response.setMTI(responseMti);
 
         // Run mock's response script if enabled
-        if (Boolean.TRUE.equals(matched.getScriptEnabled()) && matched.getScript() != null) {
-            runResponseScript(matched, context, response);
+        if (effectiveScriptEnabled && effectiveScript != null) {
+            runResponseScript(effectiveScript, effectiveScriptLanguage, context, response);
         }
 
         // Apply response field templates
-        if (matched.getResponseFields() != null) {
-            for (Map.Entry<Integer, String> entry : matched.getResponseFields().entrySet()) {
+        if (!effectiveResponseFields.isEmpty()) {
+            for (Map.Entry<Integer, String> entry : effectiveResponseFields.entrySet()) {
                 String value = renderTemplate(entry.getValue(), context);
                 if (value != null) {
                     response.set(entry.getKey(), value);
@@ -335,6 +401,28 @@ public class Iso8583Server {
             response.set(39, matched.getResponseCode());
         } else if (!response.hasField(39)) {
             response.set(39, "00");
+        }
+
+        // Scenario Transition Execution
+        if (matched.getScenarioName() != null && !matched.getScenarioName().isEmpty()) {
+            Map<String, Object> transitionContext = new HashMap<>();
+            
+            // Re-use request fields from existing context
+            transitionContext.put("request", context.get("request"));
+            
+            // Build response fields for transition
+            Map<String, String> responseFields = new HashMap<>();
+            responseFields.put("mti", response.getMTI());
+            for (int i = 0; i <= 128; i++) {
+                if (response.hasField(i)) {
+                    responseFields.put(String.valueOf(i), response.getString(i));
+                }
+            }
+            transitionContext.put("response", responseFields);
+            transitionContext.put("vars", context.get("vars"));
+            transitionContext.put("state", context.get("state"));
+            
+            scenarioService.processTransition(matched.getScenarioName(), transitionContext);
         }
 
         log.debug("ISO8583 response prepared: MTI={} code={}", response.getMTI(), response.getString(39));
@@ -441,8 +529,10 @@ public class Iso8583Server {
         context.put("merchantId", request.getString(42));
         context.put("currencyCode", request.getString(49));
 
-        // Shared state
-        context.put("state", new HashMap<String, Object>());
+        // Shared state (Redis-backed for global persistence)
+        String stateKey = "dynamic-mock:script-state:global";
+        context.put("state", new RedisBackedStateMap(stateKey, redisTemplate));
+        context.put("vars", new HashMap<String, Object>());
 
         return context;
     }
@@ -485,7 +575,7 @@ public class Iso8583Server {
     /**
      * Run a mock's response script to set dynamic response fields.
      */
-    private void runResponseScript(Iso8583Endpoint.Iso8583Mock mock, Map<String, Object> context, ISOMsg response) {
+    private void runResponseScript(String script, String language, Map<String, Object> context, ISOMsg response) {
         try {
             ScriptContext scriptContext = new ScriptContext();
             scriptContext.setBody(context.get("request").toString());
@@ -496,8 +586,8 @@ public class Iso8583Server {
             scriptContext.getVariables().put("responseFields", responseFields);
 
             scriptEngine.execute(
-                    mock.getScript(),
-                    mock.getScriptLanguage() != null ? mock.getScriptLanguage() : "js",
+                    script,
+                    language != null ? language : "js",
                     scriptContext
             );
 
@@ -520,7 +610,7 @@ public class Iso8583Server {
             context.putAll(scriptContext.getVariables());
 
         } catch (Exception e) {
-            log.error("Response script error in mock '{}'", mock.getName(), e);
+            log.error("Response script error", e);
         }
     }
 

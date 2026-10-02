@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { DialogProvider } from '@/context/DialogContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -18,9 +19,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <WorkspaceProvider>
-          {children}
-        </WorkspaceProvider>
+        <DialogProvider>
+          <WorkspaceProvider>
+            {children}
+          </WorkspaceProvider>
+        </DialogProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

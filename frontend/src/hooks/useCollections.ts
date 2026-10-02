@@ -59,9 +59,9 @@ export function useCollections(userId: string) {
     collections: collectionsQuery.data || [],
     isLoading: collectionsQuery.isLoading,
     error: collectionsQuery.error,
-    createCollection: createCollectionMutation.mutate,
-    updateCollection: updateCollectionMutation.mutate,
-    deleteCollection: deleteCollectionMutation.mutate,
+    createCollection: createCollectionMutation.mutateAsync,
+    updateCollection: updateCollectionMutation.mutateAsync,
+    deleteCollection: deleteCollectionMutation.mutateAsync,
     addItemToCollection: addItemMutation.mutateAsync,
   };
 }

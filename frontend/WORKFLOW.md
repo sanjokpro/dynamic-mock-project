@@ -1,45 +1,414 @@
-# Workflow State - Dynamic Mock API Server
+# Dynamic Mock Project Workflow
 
-## [System State Tracker]
-- **Last Build Status**: ✅ PASSING
-- **Clean Architecture Refactoring**: ✅ COMPLETED
-- **Domain Layer Decoupling**: ✅ COMPLETED
-- **Last Updated**: 2026-05-20
+## Project Status
 
-## Current Phase: Validation & Future Roadmap
-**Status**: ✅ COMPLETED
-**Last Agent**: Gemini CLI
-**Last Updated**: 2026-05-20
+### Lifecycle Status
 
-## Execution Summary
-- **Spring Boot 4.0.1 Migration**: ✅ COMPLETED.
-- **Java Environment**: ✅ COMPLETED. (Java 21 found in SDKMAN).
-- **Gradle Upgrade**: ✅ COMPLETED. (Upgraded to 9.2.1).
-- **Clean Architecture Refactoring**: ✅ COMPLETED. All Domain entities decoupled from Spring Data MongoDB.
-- **Documentation**: ✅ COMPLETED.
-- **Full Test Suite**: ✅ COMPLETED. (All tests passing).
+| Phase | Status |
+|---------|---------|
+| Planning Phase | ✅ COMPLETE |
+| Architecture Phase | ✅ COMPLETE |
+| Recovery Phase | ✅ COMPLETE |
+| Product Strategy Phase | ✅ COMPLETE |
+| Roadmap Definition Phase | ✅ COMPLETE |
+| Execution Phase | 🚀 ACTIVE |
 
-## Accomplishments & Bug Fixes
-1. **Domain Decoupling**: Moved all persistence metadata to Infrastructure layer using Mappers and Persistence Entities.
-2. **Circular Dependency Fix**: Extracted `ObjectMapper` to `JacksonConfig` to break `WebConfig` -> `Dispatcher` -> `ObjectMapper` cycle.
-3. **Handlebars Script Support**: Implemented `script` helper in `ResponseTemplateEngine` to execute embedded GraalVM scripts.
-4. **GraalVM Scripting Enhancements**:
-    - Supported top-level `return` in JS and Python.
-    - Enabled full Host Access and Class Lookup for `Java.type` support.
-    - Implemented deep extraction for JS objects and Python dictionaries (using Hash entries).
-    - Implemented JSON body parsing for script access.
-5. **Integration Test Fixes**:
-    - Updated HTTP methods (PATCH -> POST) to match controller implementation.
-    - Fixed path prefixing and variable matching.
-    - Manually configured `MockMvc` for Spring Boot 4 compatibility in tests.
+---
 
-## Task Backlog
-1. [x] **Resolve Java Environment**
-2. [x] **Verify Build**
-3. [x] **Complete Clean Architecture Refactoring**
-4. [x] **Run Full Test Suite**
-5. [ ] **Final Clean up**: Remove custom build directory and fix remaining Windows paths in docs.
+## Strategic Authority
 
-## Anomalies & Blockers
-- **Note**: `backend/build` remains root-owned. Continued using `-Dorg.gradle.project.buildDir=new_build`.
-- **Note**: `Task`, `Run`, `Compilation`, `Check` ghost files remain in root.
+The following documents are the governing authorities for this repository:
+
+1. AI_GOVERNANCE.md
+2. MASTER_PRODUCT_ACTION_PLAN.md
+3. MASTER_PRODUCT_ACTION_PLAN_REVIEW.md
+4. ROADMAP_AUTHORITY.md
+
+Rules:
+
+- Development priorities must follow these documents.
+- New feature requests do not automatically change priorities.
+- Any roadmap deviation requires documented business justification.
+- Product differentiation takes precedence over commodity features.
+- Features related to ISO8583, Stateful Scenarios, Self Hosting, Data Sovereignty, and White Labeling receive higher priority than generic mock server functionality.
+
+---
+
+# Current Sprint
+
+## Sprint 1
+
+### Name
+
+ISO8583 Productization Foundation
+
+### Goal
+
+Strengthen the project's primary competitive advantage by making ISO8583 functionality easier to adopt, easier to understand, and usable in real-world banking environments.
+
+### Deliverables
+
+#### P0
+
+- Packager Upload Support
+- ISO8583 Data Dictionary
+
+#### Supporting Deliverables
+
+- GitHub Actions CI Pipeline
+- LICENSE validation
+- THIRD_PARTY_LICENSES.md
+- jPOS licensing assessment documentation
+
+### Success Criteria
+
+#### Packager Upload
+
+- ✅ Users can upload custom packager definitions via UI
+- ✅ Uploaded packagers are stored in MongoDB alongside endpoint configuration
+- ✅ Validation prevents invalid XML uploads (jPOS GenericPackager validation before persist)
+- ✅ Hot-reload: active endpoints restart with new packager immediately
+- ✅ Reset to Default reverts to bundled ISO 8583:1987 packager
+- ✅ `createPackager()` bug fixed — was always using bundled default regardless of configuration
+- ✅ API: `POST /api/iso8583/endpoints/{id}/packager` and `DELETE /api/iso8583/endpoints/{id}/packager`
+
+#### ISO8583 Data Dictionary
+
+- ✅ All 128 standard ISO 8583:1987 fields defined in `frontend/src/data/iso8583-fields.json`
+- ✅ Search/autocomplete by field number, name, or abbreviation
+- ✅ Field labels displayed inline (e.g. `2 — PAN — Primary Account Number`)
+- ✅ Format and description as tooltip
+- ✅ Custom numeric field entry still supported (backward compatible)
+- ✅ MTI dropdown now covers all 24 standard MTIs from dictionary
+
+#### CI Pipeline
+
+- ✅ `.github/workflows/ci.yml` created
+- ✅ Backend build + tests run on push/PR
+- ✅ Frontend lint + build + tests run on push/PR
+- ✅ Backend BUILD SUCCESSFUL (verified locally)
+- ✅ Frontend BUILD SUCCESSFUL (verified locally)
+- ✅ All 11 frontend tests pass
+- ✅ All backend unit tests pass
+
+#### Licensing
+
+- ✅ `LICENSE` — Apache 2.0 added
+- ✅ `THIRD_PARTY_LICENSES.md` — All major dependencies documented
+- ✅ jPOS AGPL-3.0 dependency documented factually; legal review recommendation included
+- ✅ README references LICENSE
+
+### Status
+
+✅ **SPRINT 1 COMPLETE** — 2026-10-01
+
+See: `SPRINT_01_COMPLETION_REPORT.md`
+
+---
+
+
+# Recently Completed Milestones
+
+## Governance Hardening
+
+✅ AI Governance established
+
+✅ Governance Gap Analysis completed
+
+✅ Master Product Action Plan created
+
+✅ Master Product Action Plan reviewed
+
+✅ Strategic roadmap finalized
+
+---
+
+## Frontend Recovery
+
+### Scenario Recovery Sprint
+
+✅ Scenario Editor integrated into application flow
+
+✅ Scenario creation workflow implemented
+
+✅ Scenario view navigation added
+
+✅ Scenario tests added
+
+---
+
+### Environment Management Sprint
+
+✅ Environment Manager modal created
+
+✅ Environment CRUD implemented
+
+✅ Environment cloning implemented
+
+✅ Variable editor implemented
+
+✅ Tests added
+
+---
+
+### Collection Management Sprint
+
+✅ Collection rename
+
+✅ Collection delete
+
+✅ Collection clone
+
+✅ Route movement between collections
+
+✅ Collection tests
+
+---
+
+### Frontend Quality Sprint
+
+✅ Native dialog removal
+
+✅ Toast notifications
+
+✅ Validation improvements
+
+✅ Shared dialog framework
+
+✅ UX consistency improvements
+
+---
+
+## ISO8583 Milestones
+
+### Discovery
+
+✅ ISO8583 capability analysis
+
+✅ Productization gap analysis
+
+✅ Stateful integration design
+
+---
+
+### Implementation
+
+✅ Stateful ISO8583 scenario integration
+
+✅ ScenarioService integration
+
+✅ RedisBackedStateMap integration
+
+✅ Scenario-linked ISO8583 mocks
+
+✅ Stateful transition execution
+
+✅ Integration tests
+
+---
+
+## White Labeling
+
+### Discovery
+
+✅ White Label Gap Analysis
+
+✅ White Label Architecture Design
+
+---
+
+# Current Product Assessment
+
+## Backend
+
+Estimated Completion: 85%
+
+Strengths:
+
+- REST Mocking
+- GraphQL Support
+- gRPC Support
+- ISO8583 Engine
+- Scenario Engine
+- Versioning
+- Dynamic Scripting
+- Environment Management
+
+---
+
+## Frontend
+
+Estimated Completion: 85%
+
+Strengths:
+
+- Route Management
+- Collection Management
+- Environment Management
+- Scenario Management
+- Traffic Console
+- Improved UX
+- Testing Foundation
+
+---
+
+## ISO8583
+
+Estimated Completion: 85%
+
+Strengths:
+
+- Stateful Scenarios
+- Dynamic Templates
+- MTI Matching
+- Script Execution
+- Scenario Integration
+
+Remaining Gaps:
+
+- Packager Upload
+- Data Dictionary
+- Message Simulator
+- Scenario State Inspector
+- Bitmap Visualization
+
+---
+
+## White Labeling
+
+Estimated Completion: 20%
+
+Completed:
+
+- Discovery
+- Architecture Design
+
+Remaining:
+
+- Backend Configuration Store
+- Branding API
+- Branding Provider
+- Dynamic Themes
+- Logo Management
+- Favicon Management
+
+---
+
+# Future Planned Roadmap
+
+## Sprint 2
+
+ISO8583 User Experience
+
+- Message Simulator
+- Scenario State Viewer
+
+---
+
+## Sprint 3
+
+Open Source Packaging
+
+- README Rewrite
+- Screenshots
+- Feature Matrix
+- Contributing Guide
+- Project Positioning
+
+---
+
+## Sprint 4
+
+Authentication Foundation
+
+- User Context
+- Local Authentication
+
+---
+
+## Sprint 5
+
+White Label Backend
+
+- OrganizationConfig
+- Branding API
+- Branding Storage
+
+---
+
+## Sprint 6
+
+White Label Frontend
+
+- BrandingProvider
+- Runtime Themes
+- Dynamic Metadata
+- Favicon Override
+
+---
+
+## Sprint 7
+
+Reference Banking Sandbox
+
+Demonstrate:
+
+- Authorization
+- Capture
+- Reversal
+- Refund
+- Chargeback
+
+Deliverable:
+
+docker compose up
+→ working banking simulation environment
+
+---
+
+# Deferred Features
+
+The following remain intentionally deferred:
+
+- RBAC
+- LDAP
+- OIDC
+- SAML
+- Multi-Tenancy
+- Nested Collections
+- Protocol Editor Segregation
+
+These features will not be prioritized until product differentiation and adoption goals are achieved.
+
+---
+
+# Known Risks
+
+## Technical
+
+- jPOS licensing implications must be clearly documented.
+- Custom packager support must be validated carefully.
+- Redis remains a critical dependency for stateful simulation.
+
+## Product
+
+- README positioning does not yet reflect current product reality.
+- Banking simulator story is not yet demonstrated through reference deployments.
+
+---
+
+# Roadmap Freeze
+
+The project is now operating in execution mode.
+
+No new roadmap documents should be created unless:
+
+- Significant business requirements change.
+- Product positioning changes.
+- Strategic authority documents are updated.
+
+Current focus:
+
+🚀 Execute Sprint 1
+
+Do not replace roadmap priorities with ad-hoc feature requests.

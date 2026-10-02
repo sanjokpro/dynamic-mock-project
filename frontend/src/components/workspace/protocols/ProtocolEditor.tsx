@@ -1,11 +1,32 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Protocol } from '@/types';
 import { useProtocolEndpoints } from '@/hooks/useProtocolEndpoints';
 import { CodeEditor } from '../CodeEditor';
-import { Loader2, Save, Check, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Save, Check, Plus, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useScenarios } from '@/hooks/useScenarios';
+import iso8583Dict from '@/data/iso8583-fields.json';
+
+// ===================== ISO8583 Dictionary Helpers =====================
+
+type FieldDef = { name: string; abbr: string; format: string; description: string };
+const fields: Record<string, FieldDef> = (iso8583Dict as any).fields;
+const mtiDescriptions: Record<string, string> = (iso8583Dict as any).mtiDescriptions;
+const commonResponseCodes: Record<string, string> = (iso8583Dict as any).commonResponseCodes;
+
+function getFieldLabel(fieldNum: string): string {
+  const def = fields[fieldNum];
+  if (!def) return fieldNum;
+  return `${fieldNum} — ${def.name} (${def.abbr})`;
+}
+
+function getFieldDescription(fieldNum: string): string {
+  const def = fields[fieldNum];
+  if (!def) return '';
+  return `Format: ${def.format}\n${def.description}`;
+}
 
 interface ProtocolEditorProps {
   protocol: Protocol;
@@ -314,6 +335,48 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
   const [customServerXml, setCustomServerXml] = useState(endpoint.customServerXml || '');
   const [isSuccess, setIsSuccess] = useState(false);
   const [expandedMock, setExpandedMock] = useState<number | null>(null);
+  const [packagerName, setPackagerName] = useState<string | null>(endpoint.packagerName || null);
+  const [packagerUploading, setPackagerUploading] = useState(false);
+  const [packagerError, setPackagerError] = useState<string | null>(null);
+  const { scenarios } = useScenarios();
+  const packagerInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePackagerUpload = async (file: File) => {
+    setPackagerUploading(true);
+    setPackagerError(null);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`/api/iso8583/endpoints/${endpoint.id}/packager`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
+      setPackagerName(data.packagerName || file.name);
+    } catch (e: any) {
+      setPackagerError(e.message || 'Upload failed');
+    } finally {
+      setPackagerUploading(false);
+    }
+  };
+
+  const handlePackagerReset = async () => {
+    setPackagerUploading(true);
+    setPackagerError(null);
+    try {
+      const res = await fetch(`/api/iso8583/endpoints/${endpoint.id}/packager`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Reset failed (${res.status})`);
+      setPackagerName(null);
+    } catch (e: any) {
+      setPackagerError(e.message || 'Reset failed');
+    } finally {
+      setPackagerUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -330,7 +393,7 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
   };
 
   const addMock = () => {
-    setMocks([...mocks, { name: '', mti: '0200', matchers: {}, responseFields: {}, responseCode: '00', priority: 0, enabled: true, delayMs: 0 }]);
+    setMocks([...mocks, { name: '', mti: '0200', matchers: {}, responseFields: {}, responseCode: '00', priority: 0, enabled: true, delayMs: 0, scenarioName: '' }]);
     setExpandedMock(mocks.length);
   };
 
@@ -377,6 +440,53 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
           </div>
         </div>
 
+        {/* Packager Upload Section */}
+        <div className="border rounded-lg p-3 bg-muted/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-muted-foreground uppercase">Packager Definition</label>
+            <div className="flex items-center gap-2">
+              {packagerName ? (
+                <>
+                  <span className="text-xs text-green-400 font-mono">{packagerName}</span>
+                  <button
+                    onClick={handlePackagerReset}
+                    disabled={packagerUploading}
+                    className="text-[10px] text-destructive hover:underline disabled:opacity-50"
+                  >
+                    Reset to Default
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-muted-foreground italic">Using bundled ISO 8583:1987 default</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              ref={packagerInputRef}
+              type="file"
+              accept=".xml,text/xml,application/xml"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handlePackagerUpload(f);
+                e.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => packagerInputRef.current?.click()}
+              disabled={packagerUploading}
+              className="text-xs px-2 py-1 border rounded hover:bg-accent/60 disabled:opacity-50 transition-colors"
+            >
+              {packagerUploading ? 'Uploading…' : 'Upload packager.xml'}
+            </button>
+            <span className="text-[10px] text-muted-foreground">jPOS GenericPackager XML format</span>
+          </div>
+          {packagerError && (
+            <p className="text-[10px] text-destructive">{packagerError}</p>
+          )}
+        </div>
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-muted-foreground uppercase">Mock Scenarios</label>
@@ -412,20 +522,37 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
                     <div className="flex items-center gap-2">
                       <select value={mock.mti} onChange={(e) => updateMock(idx, 'mti', e.target.value)}
                         className="flex-1 bg-background border rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary">
-                        <option value="0100">0100 - Authorization Request</option>
-                        <option value="0110">0110 - Authorization Response</option>
-                        <option value="0200">0200 - Financial Request</option>
-                        <option value="0210">0210 - Financial Response</option>
-                        <option value="0220">0220 - Acquirer Financial Advice</option>
-                        <option value="0400">0400 - Reversal Request</option>
-                        <option value="0420">0420 - Reversal Advice</option>
-                        <option value="0800">0800 - Network Management</option>
-                        <option value="0810">0810 - Network Management Response</option>
+                        {Object.entries(mtiDescriptions).map(([code, desc]) => (
+                          <option key={code} value={code}>{code} — {desc}</option>
+                        ))}
                       </select>
                       <input placeholder="Resp MTI" value={mock.responseMti || ''} onChange={(e) => updateMock(idx, 'responseMti', e.target.value)}
                         className="w-20 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary" title="Response MTI (leave empty to auto-compute)" />
                     </div>
                   </div>
+                  
+                  {/* Scenario Binding */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase">Link to Scenario</span>
+                      <select 
+                        value={mock.scenarioName || ''} 
+                        onChange={(e) => updateMock(idx, 'scenarioName', e.target.value)}
+                        className="flex-1 bg-background border rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">None (Standalone Mock)</option>
+                        {scenarios.map(s => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {mock.scenarioName && (
+                      <p className="text-[10px] text-blue-500 italic">
+                        Scenario linked. The scenario's postScript and JSON responseTemplate will override this mock's default fields.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <span className="text-[10px] text-muted-foreground">Response Code (f39)</span>
@@ -446,10 +573,11 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
 
                   {/* Response Fields */}
                   <div>
-                    <span className="text-[10px] text-muted-foreground">Response Fields (field number → template)</span>
+                    <span className="text-[10px] text-muted-foreground">Response Fields — type a field number or name to search</span>
                     <ResponseFieldsEditor
                       fields={mock.responseFields || {}}
                       onChange={(v) => updateMock(idx, 'responseFields', v)}
+                      showDictionary
                     />
                   </div>
 
@@ -472,10 +600,12 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
 
                   {/* Matchers */}
                   <div>
-                    <span className="text-[10px] text-muted-foreground">Field Matchers (field.2 → ^4111.*)</span>
+                    <span className="text-[10px] text-muted-foreground">Field Matchers — field number → regex pattern (e.g. 2 → ^4111.*)</span>
                     <ResponseFieldsEditor
                       fields={mock.matchers || {}}
                       onChange={(v) => updateMock(idx, 'matchers', v)}
+                      showDictionary
+                      valuePlaceholder="regex or exact value"
                     />
                   </div>
                 </div>
@@ -520,14 +650,110 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
   );
 }
 
-function ResponseFieldsEditor({ fields, onChange }: { fields: Record<string, string>; onChange: (fields: Record<string, string>) => void }) {
+// ===================== Field Autocomplete Input =====================
+
+function FieldNumberInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const matches = query.trim()
+    ? Object.entries(fields).filter(([num, def]) =>
+        num.startsWith(query.trim()) ||
+        def.name.toLowerCase().includes(query.toLowerCase()) ||
+        def.abbr.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
+  const handleSelect = (num: string) => {
+    setQuery(num);
+    onChange(num);
+    setOpen(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    onChange(e.target.value);
+    setOpen(true);
+  };
+
+  const label = fields[query];
+
+  return (
+    <div ref={ref} className="relative w-48 flex-shrink-0">
+      <div className="relative">
+        <input
+          value={query}
+          onChange={handleChange}
+          onFocus={() => setOpen(true)}
+          placeholder="Field # or name"
+          className="w-full bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary pr-6"
+        />
+        <Search className="absolute right-1.5 top-1 h-3 w-3 text-muted-foreground" />
+      </div>
+      {/* Field label tooltip */}
+      {label && (
+        <div className="text-[10px] text-blue-400 truncate mt-0.5 px-0.5" title={label.description}>
+          {label.abbr} — {label.name}
+        </div>
+      )}
+      {/* Dropdown */}
+      {open && matches.length > 0 && (
+        <div className="absolute z-50 top-full left-0 mt-0.5 w-72 bg-popover border rounded shadow-lg max-h-56 overflow-auto">
+          {matches.map(([num, def]) => (
+            <button
+              key={num}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(num); }}
+              className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/60 flex flex-col gap-0"
+              title={`Format: ${def.format}\n${def.description}`}
+            >
+              <span className="font-mono font-bold">{num} — <span className="text-orange-400">{def.abbr}</span></span>
+              <span className="text-muted-foreground truncate">{def.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== Response Fields Editor =====================
+
+function ResponseFieldsEditor({
+  fields: inputFields,
+  onChange,
+  showDictionary = false,
+  valuePlaceholder = '{{field.value}} or static text',
+}: {
+  fields: Record<string, string>;
+  onChange: (fields: Record<string, string>) => void;
+  showDictionary?: boolean;
+  valuePlaceholder?: string;
+}) {
   const [rows, setRows] = useState<Array<{ key: string; value: string }>>(() =>
-    Object.entries(fields || {}).map(([k, v]) => ({ key: k, value: v }))
+    Object.entries(inputFields || {}).map(([k, v]) => ({ key: k, value: v }))
   );
 
   useEffect(() => {
-    setRows(Object.entries(fields || {}).map(([k, v]) => ({ key: k, value: v })));
-  }, [fields]);
+    setRows(Object.entries(inputFields || {}).map(([k, v]) => ({ key: k, value: v })));
+  }, [inputFields]);
 
   const emitChange = (newRows: Array<{ key: string; value: string }>) => {
     const result: Record<string, string> = {};
@@ -541,8 +767,14 @@ function ResponseFieldsEditor({ fields, onChange }: { fields: Record<string, str
     emitChange(newRows);
   };
 
-  const updateRow = (index: number, field: 'key' | 'value', val: string) => {
-    const newRows = rows.map((r, i) => i === index ? { ...r, [field]: val } : r);
+  const updateKey = (index: number, val: string) => {
+    const newRows = rows.map((r, i) => i === index ? { ...r, key: val } : r);
+    setRows(newRows);
+    emitChange(newRows);
+  };
+
+  const updateValue = (index: number, val: string) => {
+    const newRows = rows.map((r, i) => i === index ? { ...r, value: val } : r);
     setRows(newRows);
     emitChange(newRows);
   };
@@ -554,14 +786,29 @@ function ResponseFieldsEditor({ fields, onChange }: { fields: Record<string, str
   };
 
   return (
-    <div className="space-y-1 mt-1">
+    <div className="space-y-1.5 mt-1">
       {rows.map((row, idx) => (
-        <div key={idx} className="flex items-center gap-2 group">
-          <input placeholder="Field #" value={row.key} onChange={(e) => updateRow(idx, 'key', e.target.value)}
-            className="w-20 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary" />
-          <input placeholder="{{field.value}} or static text" value={row.value} onChange={(e) => updateRow(idx, 'value', e.target.value)}
-            className="flex-1 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary" />
-          <button onClick={() => deleteRow(idx)} className="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all">
+        <div key={idx} className="flex items-start gap-2 group">
+          {showDictionary ? (
+            <FieldNumberInput value={row.key} onChange={(v) => updateKey(idx, v)} />
+          ) : (
+            <input
+              placeholder="Field #"
+              value={row.key}
+              onChange={(e) => updateKey(idx, e.target.value)}
+              className="w-20 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary"
+            />
+          )}
+          <input
+            placeholder={valuePlaceholder}
+            value={row.value}
+            onChange={(e) => updateValue(idx, e.target.value)}
+            className="flex-1 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-primary mt-0"
+          />
+          <button
+            onClick={() => deleteRow(idx)}
+            className="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all mt-0.5"
+          >
             <Trash2 className="h-3 w-3" />
           </button>
         </div>

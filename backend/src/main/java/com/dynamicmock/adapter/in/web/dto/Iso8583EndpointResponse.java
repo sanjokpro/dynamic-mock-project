@@ -29,6 +29,8 @@ public class Iso8583EndpointResponse {
     private String headerLengthType;
     private String encoding;
     private String packagerConfig;
+    private String packagerName;
+    private Boolean hasCustomPackager;
     private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -49,6 +51,8 @@ public class Iso8583EndpointResponse {
                 .headerLengthType(endpoint.getHeaderLengthType())
                 .encoding(endpoint.getEncoding())
                 .packagerConfig(endpoint.getPackagerConfig())
+                .packagerName(endpoint.getPackagerName())
+                .hasCustomPackager(endpoint.getPackagerXmlContent() != null && !endpoint.getPackagerXmlContent().isBlank())
                 .active(endpoint.getActive())
                 .createdAt(endpoint.getCreatedAt())
                 .updatedAt(endpoint.getUpdatedAt())

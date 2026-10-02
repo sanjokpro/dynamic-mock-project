@@ -169,6 +169,66 @@ public class Iso8583Service {
         log.info("Reloaded {} active ISO8583 endpoints", activeEndpoints.size());
     }
     
+    /**
+     * Upload a custom jPOS GenericPackager XML for an endpoint.
+     *
+     * Validates by attempting to instantiate the packager before persisting.
+     * If the endpoint is active, the server is restarted with the new packager.
+     *
+     * @param id          endpoint ID
+     * @param packagerXml raw XML bytes
+     * @param filename    original filename (for display)
+     * @return updated endpoint
+     */
+    public Iso8583Endpoint uploadPackager(String id, byte[] packagerXml, String filename) {
+        Iso8583Endpoint endpoint = findById(id);
+
+        // Validate: attempt to parse the XML as a GenericPackager
+        try {
+            new org.jpos.iso.packager.GenericPackager(
+                    new java.io.ByteArrayInputStream(packagerXml));
+        } catch (org.jpos.iso.ISOException e) {
+            throw new IllegalArgumentException(
+                    "Invalid packager XML: " + e.getMessage(), e);
+        }
+
+        String xmlContent = new String(packagerXml, java.nio.charset.StandardCharsets.UTF_8);
+        endpoint.setPackagerXmlContent(xmlContent);
+        endpoint.setPackagerName(filename);
+        endpoint.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Iso8583Endpoint saved = repository.save(endpoint);
+
+        // Hot-reload: restart if active so the new packager takes effect immediately
+        if (Boolean.TRUE.equals(saved.getActive())) {
+            deactivateEndpoint(saved);
+            activateEndpoint(saved);
+            log.info("Hot-reloaded ISO8583 endpoint '{}' with packager '{}'",
+                    saved.getName(), filename);
+        }
+
+        return saved;
+    }
+
+    /**
+     * Remove a custom packager from an endpoint, reverting to the bundled default.
+     */
+    public Iso8583Endpoint removePackager(String id) {
+        Iso8583Endpoint endpoint = findById(id);
+        endpoint.setPackagerXmlContent(null);
+        endpoint.setPackagerName(null);
+        endpoint.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Iso8583Endpoint saved = repository.save(endpoint);
+
+        if (Boolean.TRUE.equals(saved.getActive())) {
+            deactivateEndpoint(saved);
+            activateEndpoint(saved);
+        }
+
+        return saved;
+    }
+
     public void shutdownAll() {
         iso8583Server.shutdownAll();
     }

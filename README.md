@@ -1,16 +1,49 @@
-# Dynamic Mock API Server
+# Dynamic Mock — Open Source Enterprise Integration Simulation Platform
 
-A powerful, dynamic mock API server with GraalVM polyglot scripting support, combining the flexibility of Postman, WireMock, and Apidog.
+[![CI](https://github.com/your-org/dynamic-mock-project/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/dynamic-mock-project/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
+Simulate **REST, GraphQL, gRPC, and ISO8583** financial protocols with stateful scenarios. Self-hosted. Built for banks, payment switches, and fintechs.
+
+> **The only open-source mock platform with native ISO8583 simulation, stateful scenario state machines, and GraalVM polyglot scripting — all in a single self-hosted deployment.**
 
 ## Features
 
-- **Dynamic Route Creation**: Create mock endpoints without server restart
-- **Polyglot Scripting**: Execute JavaScript and Python scripts via GraalVM
-- **Multiple Protocols**: REST, gRPC, GraphQL, and ISO8583 support
-- **Response Templating**: Handlebars templates with built-in random data functions
-- **Stateful Mocking**: Support for scenarios and variable resolution
-- **Versioning**: Mock API versioning with rollback and diff capabilities
-- **Built-in Random Functions**: `{{$randomInt}}`, `{{$randomBool}}`, `{{$randomString}}`, `{{$timestamp}}`, etc.
+## Key Features
+
+### 🏦 ISO8583 Financial Protocol Simulation *(Unique — no competitor has this)*
+- Native ISO8583 TCP server powered by jPOS Q2
+- **Data Dictionary**: Labeled field lookup for all 128 ISO 8583:1987 standard fields with search/autocomplete
+- **Custom Packager Upload**: Upload your bank's custom `packager.xml` (Postilion, Base24, custom dialects) via UI
+- Stateful transaction flows: Authorization → Capture → Reversal → Refund
+- MTI-based routing with field matchers
+
+### 🔄 Stateful Scenario Engine
+- State machine with Redis persistence across all protocols (REST + ISO8583)
+- JSON response templates with scenario variable binding
+- GraalVM polyglot scripting (JavaScript + Python) for dynamic responses
+
+### 🌐 Multi-Protocol Support
+- **REST**: Full CRUD mock management, request matching, versioning
+- **GraphQL**: Schema-first mock definitions
+- **gRPC**: Proto file upload + response configuration
+- **ISO8583**: Native TCP server with jPOS packager support
+
+### ⚙️ Developer Experience
+- Dynamic route creation without server restart
+- Handlebars response templating with built-in random data functions (`{{$randomInt}}`, `{{$randomString}}`, etc.)
+- Postman Collection import
+- Live traffic console (WebSocket)
+- Environment variables with full CRUD UI
+- Route versioning with rollback and diff
+
+### 🏢 Enterprise Ready
+- Self-hosted — full data sovereignty
+- Docker Compose single-command deployment
+- Redis-backed state management
+- White-label ready (architecture designed, implementation upcoming)
+- Apache 2.0 licensed
+
 
 ## Architecture
 
@@ -552,6 +585,14 @@ Coverage reports are generated in `backend/build/reports/jacoco/test/`
 
 ## License
 
-AGPL-3.0 (due to jPOS dependency for ISO8583 support)
+Dynamic Mock is distributed under the **[Apache License 2.0](LICENSE)**.
 
-For commercial licensing options, contact the maintainers.
+This project uses third-party open-source libraries. Notable dependency:
+
+- **jPOS** (`org.jpos:jpos:2.1.9`) is distributed under the GNU Affero General Public License v3 (AGPL-3.0) and is used by Dynamic Mock as an unmodified runtime dependency.
+
+Organizations should independently review the licensing requirements of all third-party dependencies and consult qualified legal counsel if they have questions regarding their specific usage, distribution, hosting, or compliance obligations.
+
+See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md) for the complete list of third-party dependencies and their licenses.
+
+> This README is informational only and does not constitute legal advice.

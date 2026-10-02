@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Globe, ChevronDown, Sun, Moon, Play, User, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import } from 'lucide-react';
+import { Globe, ChevronDown, Sun, Moon, Play, User, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings } from 'lucide-react';
 import { useEnvironments } from '@/hooks/useEnvironments';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -10,6 +10,9 @@ import { useCollections } from '@/hooks/useCollections';
 import { cn } from '@/lib/utils';
 import { MockRoute } from '@/types';
 import { ImportModal } from './ImportModal';
+import { EnvironmentManagerModal } from './environments/EnvironmentManagerModal';
+import { useDialogs } from '@/context/DialogContext';
+import { toast } from 'sonner';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'text-blue-500',
@@ -28,7 +31,9 @@ export function Header() {
   const { routes, createRoute } = useRoutes();
   const userId = 'default-user';
   const { collections } = useCollections(userId);
+  const { prompt } = useDialogs();
   const [envDropdownOpen, setEnvDropdownOpen] = useState(false);
+  const [envManagerOpen, setEnvManagerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -125,7 +130,7 @@ export function Header() {
   }, [filteredSuggestions, highlightedIndex, handleSelectSuggestion]);
 
   const handleQuickCreateRoute = useCallback(async () => {
-    const name = prompt('New Route Name:');
+    const name = await prompt({ title: 'New Route', placeholder: 'Route Name' });
     if (name) {
       try {
         const targetCollection = collections?.[0];
@@ -138,6 +143,7 @@ export function Header() {
           });
           if (newRoute) {
             setActiveRoute(newRoute);
+            toast.success('Route created');
           }
         } else {
           const newRoute = await createRoute({ 
@@ -148,13 +154,14 @@ export function Header() {
           });
           if (newRoute) {
             setActiveRoute(newRoute);
+            toast.success('Route created');
           }
         }
-      } catch (err) {
-        console.error('Failed to create route:', err);
+      } catch (err: any) {
+        toast.error('Failed to create route: ' + err.message);
       }
     }
-  }, [collections, createRoute, setActiveRoute]);
+  }, [collections, createRoute, setActiveRoute, prompt]);
 
   return (
     <header className="h-12 border-b bg-background flex items-center justify-between px-3 shrink-0 gap-2">
@@ -182,7 +189,7 @@ export function Header() {
         <div className="w-px h-5 bg-border hidden sm:block" />
 
         {/* Environment Selector */}
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative flex items-center gap-1" ref={dropdownRef}>
           <button
             onClick={() => setEnvDropdownOpen(!envDropdownOpen)}
             className="flex items-center gap-1.5 px-2 h-7 text-xs bg-accent/30 border border-border rounded-md hover:bg-accent transition-colors"
@@ -193,6 +200,15 @@ export function Header() {
             </span>
             <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform shrink-0", envDropdownOpen && "rotate-180")} />
           </button>
+          
+          <button
+            onClick={() => setEnvManagerOpen(true)}
+            className="p-1.5 h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+            title="Manage Environments"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+
           {envDropdownOpen && (
             <div className="absolute left-0 top-full mt-1 w-52 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
               <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Environments</div>
@@ -369,6 +385,7 @@ export function Header() {
       </div>
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <EnvironmentManagerModal open={envManagerOpen} onClose={() => setEnvManagerOpen(false)} />
     </header>
   );
 }

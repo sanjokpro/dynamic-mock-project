@@ -10,7 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -67,6 +69,40 @@ public class Iso8583Controller {
     @PostMapping("/endpoints/{id}/deactivate")
     public ResponseEntity<Iso8583EndpointResponse> deactivateEndpoint(@PathVariable String id) {
         Iso8583Endpoint endpoint = iso8583Service.deactivate(id);
+        return ResponseEntity.ok(Iso8583EndpointResponse.from(endpoint));
+    }
+
+    /**
+     * Upload a custom jPOS GenericPackager XML for an endpoint.
+     * Validates the XML before persisting. Returns 400 on invalid XML.
+     */
+    @PostMapping("/endpoints/{id}/packager")
+    public ResponseEntity<Iso8583EndpointResponse> uploadPackager(
+            @PathVariable String id,
+            @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "packager.xml";
+        try {
+            byte[] bytes = file.getBytes();
+            Iso8583Endpoint endpoint = iso8583Service.uploadPackager(id, bytes, filename);
+            return ResponseEntity.ok(Iso8583EndpointResponse.from(endpoint));
+        } catch (IllegalArgumentException e) {
+            log.warn("Packager upload rejected for endpoint {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (IOException e) {
+            log.error("Failed to read uploaded packager file", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Remove the custom packager from an endpoint, reverting to the bundled default.
+     */
+    @DeleteMapping("/endpoints/{id}/packager")
+    public ResponseEntity<Iso8583EndpointResponse> removePackager(@PathVariable String id) {
+        Iso8583Endpoint endpoint = iso8583Service.removePackager(id);
         return ResponseEntity.ok(Iso8583EndpointResponse.from(endpoint));
     }
 }

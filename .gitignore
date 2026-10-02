@@ -12,6 +12,11 @@
 **/gradle/wrapper/gradle-wrapper.jar
 !**/gradle/wrapper/gradle-wrapper.properties
 
+# Gradle runtime artifacts
+backend/.gradle/
+backend/gradle-*/
+backend/*.zip
+
 # Node/Angular
 **/node_modules/
 **/dist/
