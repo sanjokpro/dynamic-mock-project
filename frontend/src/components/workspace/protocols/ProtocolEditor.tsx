@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Protocol } from '@/types';
 import { useProtocolEndpoints } from '@/hooks/useProtocolEndpoints';
 import { CodeEditor } from '../CodeEditor';
-import { Loader2, Save, Check, Plus, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Loader2, Save, Check, Plus, Trash2, ChevronDown, ChevronUp, Search, SendHorizontal, RefreshCw, Copy, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useScenarios } from '@/hooks/useScenarios';
+import { useIso8583Simulator } from '@/hooks/useIso8583';
 import iso8583Dict from '@/data/iso8583-fields.json';
 
 // ===================== ISO8583 Dictionary Helpers =====================
@@ -405,14 +406,50 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
     setMocks(mocks.filter((_, i) => i !== index));
   };
 
+  type EditorTab = 'config' | 'simulator';
+  const [activeTab, setActiveTab] = useState<EditorTab>('config');
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between p-2 border-b bg-muted/20">
-        <h2 className="text-sm font-bold uppercase tracking-wider">ISO8583 Configuration</h2>
-        <button onClick={handleSave} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all", isSuccess ? "bg-green-500 text-white" : "bg-accent hover:bg-accent/80 text-foreground")}>
-          {isSuccess ? <><Check className="h-4 w-4" /> Saved</> : <><Save className="h-4 w-4" /> Save</>}
-        </button>
+      {/* Tab bar */}
+      <div className="flex items-center justify-between px-2 border-b bg-muted/20">
+        <div className="flex items-center gap-0">
+          <button
+            onClick={() => setActiveTab('config')}
+            className={cn(
+              'px-4 py-2 text-xs font-semibold border-b-2 transition-colors',
+              activeTab === 'config'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Configuration
+          </button>
+          <button
+            onClick={() => setActiveTab('simulator')}
+            className={cn(
+              'flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-colors',
+              activeTab === 'simulator'
+                ? 'border-violet-500 text-violet-500'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Terminal className="h-3 w-3" />
+            Simulator
+          </button>
+        </div>
+        {activeTab === 'config' && (
+          <button onClick={handleSave} className={cn('flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all', isSuccess ? 'bg-green-500 text-white' : 'bg-accent hover:bg-accent/80 text-foreground')}>
+            {isSuccess ? <><Check className="h-4 w-4" /> Saved</> : <><Save className="h-4 w-4" /> Save</>}
+          </button>
+        )}
       </div>
+
+      {activeTab === 'simulator' && (
+        <Iso8583SimulatorPanel endpointId={endpoint.id} isActive={!!endpoint.active} />
+      )}
+
+      {activeTab === 'config' && (
       <div className="flex-1 overflow-auto p-4 space-y-6">
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-2">
@@ -646,6 +683,282 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
           </div>
         </details>
       </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== ISO8583 Message Simulator Panel =====================
+
+function Iso8583SimulatorPanel({ endpointId, isActive }: { endpointId: string; isActive: boolean }) {
+  const { simulate, isSimulating, result, reset } = useIso8583Simulator(endpointId);
+  const [selectedMti, setSelectedMti] = useState('0100');
+  const [fieldRows, setFieldRows] = useState<Array<{ fieldNum: string; value: string }>>([]);
+  const [showRequestHex, setShowRequestHex] = useState(false);
+  const [showResponseHex, setShowResponseHex] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleAddField = () => setFieldRows(prev => [...prev, { fieldNum: '', value: '' }]);
+
+  const handleRemoveField = (idx: number) => setFieldRows(prev => prev.filter((_, i) => i !== idx));
+
+  const handleSend = async () => {
+    const fieldMap: Record<string, string> = {};
+    fieldRows.forEach(({ fieldNum, value }) => {
+      if (fieldNum.trim() && value.trim()) fieldMap[fieldNum.trim()] = value.trim();
+    });
+    try { await simulate({ mti: selectedMti, fields: fieldMap }); } catch (_) { /* surfaced via result */ }
+  };
+
+  const copyToClipboard = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const loadTemplate = () => {
+    const templates: Record<string, Array<{ fieldNum: string; value: string }>> = {
+      '0100': [
+        { fieldNum: '2', value: '4111111111111111' },
+        { fieldNum: '3', value: '000000' },
+        { fieldNum: '4', value: '000000010000' },
+        { fieldNum: '11', value: '123456' },
+        { fieldNum: '41', value: 'TERM0001' },
+        { fieldNum: '42', value: 'MERCHANT00001  ' },
+        { fieldNum: '49', value: '840' },
+      ],
+      '0200': [
+        { fieldNum: '2', value: '4111111111111111' },
+        { fieldNum: '3', value: '000000' },
+        { fieldNum: '4', value: '000000010000' },
+        { fieldNum: '11', value: '123456' },
+        { fieldNum: '41', value: 'TERM0001' },
+      ],
+      '0420': [
+        { fieldNum: '2', value: '4111111111111111' },
+        { fieldNum: '3', value: '000000' },
+        { fieldNum: '4', value: '000000010000' },
+        { fieldNum: '11', value: '123456' },
+        { fieldNum: '37', value: 'RRN0001234567' },
+      ],
+    };
+    setFieldRows(templates[selectedMti] || [{ fieldNum: '2', value: '' }, { fieldNum: '3', value: '' }]);
+    reset();
+  };
+
+  return (
+    <div className="flex-1 overflow-auto flex flex-col min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/10 shrink-0">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 text-violet-500" />
+          <span className="text-xs font-bold uppercase tracking-wider">ISO8583 Message Simulator</span>
+        </div>
+        {!isActive && (
+          <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+            ⚠ Endpoint not active — activate it first
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Builder */}
+        <div className="flex-1 overflow-auto p-4 space-y-4 border-r min-w-0">
+          {/* MTI */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Message Type (MTI)</label>
+            <select
+              value={selectedMti}
+              onChange={e => { setSelectedMti(e.target.value); reset(); }}
+              className="w-full bg-background border rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-violet-500"
+            >
+              {Object.entries(mtiDescriptions).map(([code, desc]) => (
+                <option key={code} value={code}>{code} — {desc}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Fields */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Request Fields</label>
+              <div className="flex gap-3">
+                <button onClick={loadTemplate} className="text-[10px] text-violet-400 hover:underline">Load Template</button>
+                <button onClick={handleAddField} className="flex items-center gap-0.5 text-[10px] text-primary hover:underline">
+                  <Plus className="h-2.5 w-2.5" /> Add Field
+                </button>
+              </div>
+            </div>
+            {fieldRows.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground text-xs border border-dashed rounded-lg">
+                <p>No fields added.</p>
+                <button onClick={loadTemplate} className="text-violet-400 hover:underline mt-1 text-[10px]">Load template for {selectedMti}</button>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              {fieldRows.map((row, idx) => {
+                const fd = (fields as Record<string, FieldDef>)[row.fieldNum];
+                return (
+                  <div key={idx} className="flex items-start gap-1.5 group">
+                    <input
+                      placeholder="F#"
+                      value={row.fieldNum}
+                      onChange={e => setFieldRows(prev => prev.map((r, i) => i === idx ? { ...r, fieldNum: e.target.value } : r))}
+                      className="w-12 bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-violet-500 mt-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      {fd && <div className="text-[9px] text-muted-foreground truncate mb-0.5">{fd.name} ({fd.format})</div>}
+                      <input
+                        placeholder={fd ? fd.abbr : 'Value'}
+                        value={row.value}
+                        onChange={e => setFieldRows(prev => prev.map((r, i) => i === idx ? { ...r, value: e.target.value } : r))}
+                        className="w-full bg-background border rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-violet-500"
+                      />
+                    </div>
+                    <button onClick={() => handleRemoveField(idx)} className="mt-4 p-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Send Button */}
+          <button
+            onClick={handleSend}
+            disabled={isSimulating || !isActive}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 py-2 rounded-md text-sm font-semibold transition-all',
+              isSimulating || !isActive
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-violet-600 hover:bg-violet-500 text-white shadow shadow-violet-900/40'
+            )}
+          >
+            {isSimulating
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+              : <><SendHorizontal className="h-4 w-4" /> Send {selectedMti}</>
+            }
+          </button>
+
+          {/* Request hex */}
+          {result?.requestHex && (
+            <div>
+              <button onClick={() => setShowRequestHex(v => !v)} className="text-[10px] text-muted-foreground hover:text-foreground">
+                {showRequestHex ? '▾' : '▸'} Request Hex
+              </button>
+              {showRequestHex && (
+                <pre className="mt-1 text-[9px] font-mono bg-muted/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
+                  {result.requestHex}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Response */}
+        <div className="flex-1 overflow-auto p-4 space-y-3 min-w-0">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Response</label>
+
+          {!result && !isSimulating && (
+            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+              <SendHorizontal className="h-10 w-10 opacity-10 mb-3" />
+              <p className="text-xs">Send a message to see the response</p>
+            </div>
+          )}
+
+          {isSimulating && (
+            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin opacity-30 mb-3" />
+              <p className="text-xs">Waiting for response…</p>
+            </div>
+          )}
+
+          {result && !isSimulating && (
+            <div className="space-y-3">
+              {/* Status banner */}
+              <div className={cn(
+                'flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium',
+                result.success
+                  ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
+              )}>
+                <span>{result.success ? `✓ ${result.responseMti} received` : `✗ ${result.errorType || 'Error'}`}</span>
+                {result.latencyMs != null && result.latencyMs > 0 && (
+                  <span className="text-muted-foreground font-normal">{result.latencyMs}ms</span>
+                )}
+              </div>
+
+              {/* Error message */}
+              {!result.success && result.errorMessage && (
+                <div className="text-xs text-destructive bg-destructive/5 rounded p-3 border border-destructive/10">
+                  {result.errorMessage}
+                </div>
+              )}
+
+              {/* Decoded fields */}
+              {result.success && result.responseFields && Object.keys(result.responseFields).length > 0 && (
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Decoded Fields</div>
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/20">
+                          <th className="text-left px-3 py-1.5 text-[10px] text-muted-foreground font-medium w-10">F#</th>
+                          <th className="text-left px-3 py-1.5 text-[10px] text-muted-foreground font-medium">Name</th>
+                          <th className="text-left px-3 py-1.5 text-[10px] text-muted-foreground font-medium">Value</th>
+                          <th className="w-8" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {Object.entries(result.responseFields)
+                          .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+                          .map(([fn, val]) => {
+                            const fd = (fields as Record<string, FieldDef>)[fn];
+                            const isRc = fn === '39';
+                            const rcDesc = isRc ? (commonResponseCodes as Record<string, string>)[val] : null;
+                            const ck = `f-${fn}`;
+                            return (
+                              <tr key={fn} className={cn('hover:bg-muted/10 group', isRc && val === '00' ? 'bg-green-500/5' : '')}>
+                                <td className="px-3 py-1.5 font-mono text-muted-foreground text-[10px]">{fn}</td>
+                                <td className="px-3 py-1.5 text-muted-foreground text-[10px]">
+                                  {fd ? <span title={fd.description}>{fd.name}</span> : <span className="italic">Field {fn}</span>}
+                                  {rcDesc && <span className="ml-1 text-[9px]">({rcDesc})</span>}
+                                </td>
+                                <td className="px-3 py-1.5 font-mono text-[10px]">
+                                  <span className={cn(isRc && val === '00' ? 'text-green-500 font-semibold' : '')}>{val}</span>
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  <button onClick={() => copyToClipboard(val, ck)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity">
+                                    {copiedField === ck ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Response hex */}
+              {result.responseHex && (
+                <div>
+                  <button onClick={() => setShowResponseHex(v => !v)} className="text-[10px] text-muted-foreground hover:text-foreground">
+                    {showResponseHex ? '▾' : '▸'} Response Hex
+                  </button>
+                  {showResponseHex && (
+                    <pre className="mt-1 text-[9px] font-mono bg-muted/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
+                      {result.responseHex}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -653,6 +966,7 @@ function Iso8583Editor({ endpoint, onSave }: { endpoint: any; onSave: (data: any
 // ===================== Field Autocomplete Input =====================
 
 function FieldNumberInput({
+
   value,
   onChange,
 }: {

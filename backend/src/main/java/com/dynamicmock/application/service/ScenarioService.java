@@ -233,6 +233,36 @@ public class ScenarioService {
         redisTemplate.opsForValue().set(key, state, Duration.ofHours(24));
         log.debug("Set scenario '{}' state to '{}'", scenarioName, state);
     }
+
+    /**
+     * Get the execution count for a scenario from Redis.
+     */
+    public Long getExecutionCount(String scenarioName) {
+        String key = SCENARIO_EXEC_PREFIX + scenarioName;
+        Object value = redisTemplate.opsForValue().get(key);
+        if (value == null) return 0L;
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    /**
+     * Get the global script state variables stored in Redis for a scenario.
+     * These are set by GraalVM scripts via the {@code state} context variable.
+     * Key pattern: dynamic-mock:script-state:global
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getStateVariables(String scenarioName) {
+        String stateKey = "dynamic-mock:script-state:global";
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(stateKey);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        for (Map.Entry<Object, Object> entry : entries.entrySet()) {
+            result.put(entry.getKey().toString(), entry.getValue());
+        }
+        return result;
+    }
     
     /**
      * Get the current state object (full state definition) for a scenario

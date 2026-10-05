@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -130,6 +131,28 @@ public class ScenarioController {
         ));
     }
     
+    @GetMapping("/{id}/state/details")
+    public ResponseEntity<Map<String, Object>> getStateDetails(@PathVariable String id) {
+        try {
+            Scenario scenario = scenarioService.getScenario(id);
+            String currentState = scenarioService.getCurrentState(scenario.getName());
+            Long executionCount = scenarioService.getExecutionCount(scenario.getName());
+            Map<String, Object> stateVariables = scenarioService.getStateVariables(scenario.getName());
+
+            Map<String, Object> details = new HashMap<>();
+            details.put("scenarioId", scenario.getId());
+            details.put("scenarioName", scenario.getName());
+            details.put("currentState", currentState != null ? currentState : scenario.getInitialState());
+            details.put("initialState", scenario.getInitialState());
+            details.put("executionCount", executionCount != null ? executionCount : 0);
+            details.put("stateVariables", stateVariables);
+            details.put("active", scenario.getActive());
+            return ResponseEntity.ok(details);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     private ScenarioResponse toResponse(Scenario scenario) {
         return ScenarioResponse.builder()
             .id(scenario.getId())
@@ -147,4 +170,3 @@ public class ScenarioController {
             .build();
     }
 }
-

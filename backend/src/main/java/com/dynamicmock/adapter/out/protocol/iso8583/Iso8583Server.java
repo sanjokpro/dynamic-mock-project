@@ -55,6 +55,7 @@ public class Iso8583Server {
     private final ScenarioService scenarioService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final Iso8583PackagerFactory packagerFactory;
     
     // Standalone mode: Track running servers by port
     private final Map<Integer, ServerSocket> standaloneServers = new ConcurrentHashMap<>();
@@ -181,31 +182,8 @@ public class Iso8583Server {
         }
     }
     
-    private ISOPackager createPackager(Iso8583Endpoint endpoint) {
-        // 1. Custom uploaded packager takes precedence
-        if (endpoint.getPackagerXmlContent() != null && !endpoint.getPackagerXmlContent().isBlank()) {
-            try {
-                InputStream customStream = new java.io.ByteArrayInputStream(
-                        endpoint.getPackagerXmlContent().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                log.info("Using custom packager '{}' for endpoint '{}'",
-                        endpoint.getPackagerName(), endpoint.getName());
-                return new GenericPackager(customStream);
-            } catch (ISOException e) {
-                log.warn("Custom packager '{}' is invalid, falling back to default: {}",
-                        endpoint.getPackagerName(), e.getMessage());
-            }
-        }
-        // 2. Bundled default packager
-        try {
-            InputStream packagerStream = getClass().getResourceAsStream("/iso8583/packager.xml");
-            if (packagerStream != null) {
-                return new GenericPackager(packagerStream);
-            }
-            return new org.jpos.iso.packager.ISO87APackager();
-        } catch (ISOException e) {
-            log.warn("Failed to load bundled packager, using ISO87A default: {}", e.getMessage());
-            return new org.jpos.iso.packager.ISO87APackager();
-        }
+    ISOPackager createPackager(Iso8583Endpoint endpoint) {
+        return packagerFactory.create(endpoint);
     }
     
     private void acceptConnections(ServerSocket serverSocket, Iso8583Endpoint endpoint, ISOPackager packager) {

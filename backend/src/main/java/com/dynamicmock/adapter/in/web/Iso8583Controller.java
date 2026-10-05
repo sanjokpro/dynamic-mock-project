@@ -2,7 +2,10 @@ package com.dynamicmock.adapter.in.web;
 
 import com.dynamicmock.adapter.in.web.dto.Iso8583EndpointRequest;
 import com.dynamicmock.adapter.in.web.dto.Iso8583EndpointResponse;
+import com.dynamicmock.adapter.in.web.dto.Iso8583SimulateRequest;
+import com.dynamicmock.adapter.in.web.dto.Iso8583SimulateResponse;
 import com.dynamicmock.application.service.Iso8583Service;
+import com.dynamicmock.application.service.Iso8583SimulatorService;
 import com.dynamicmock.domain.entity.Iso8583Endpoint;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
 public class Iso8583Controller {
     
     private final Iso8583Service iso8583Service;
+    private final Iso8583SimulatorService simulatorService;
     
     @GetMapping("/endpoints")
     public ResponseEntity<List<Iso8583EndpointResponse>> getAllEndpoints() {
@@ -104,6 +108,22 @@ public class Iso8583Controller {
     public ResponseEntity<Iso8583EndpointResponse> removePackager(@PathVariable String id) {
         Iso8583Endpoint endpoint = iso8583Service.removePackager(id);
         return ResponseEntity.ok(Iso8583EndpointResponse.from(endpoint));
+    }
+
+    /**
+     * Simulate an ISO8583 message against a running mock endpoint.
+     *
+     * The backend opens a TCP connection to the endpoint's port, sends the
+     * constructed message using the endpoint's packager, reads the response,
+     * and returns the decoded fields. The endpoint must be active.
+     */
+    @PostMapping("/endpoints/{id}/simulate")
+    public ResponseEntity<Iso8583SimulateResponse> simulate(
+            @PathVariable String id,
+            @RequestBody Iso8583SimulateRequest request) {
+        Iso8583SimulateResponse response = simulatorService.simulate(id, request);
+        // Return 200 always — the success/errorType fields indicate simulation outcome
+        return ResponseEntity.ok(response);
     }
 }
 

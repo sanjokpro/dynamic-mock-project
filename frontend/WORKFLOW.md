@@ -36,7 +36,58 @@ Rules:
 
 # Current Sprint
 
-## Sprint 1
+## Sprint 2
+
+### Name
+
+ISO8583 User Experience Completion
+
+### Goal
+
+Close the ISO8583 feedback loop — users can send test messages from the browser and observe stateful scenario transitions in real-time.
+
+### Deliverables
+
+#### DELIVERABLE 1 — ISO8583 Message Simulator (Backend)
+- ✅ `Iso8583PackagerFactory` — shared packager resolution (custom XML → bundled → ISO87A fallback)
+- ✅ `POST /api/iso8583/endpoints/{id}/simulate` — TCP proxy endpoint
+- ✅ `Iso8583SimulatorService` — structured error types: `ENDPOINT_INACTIVE`, `CONNECTION_REFUSED`, `TIMEOUT`, `PACK_ERROR`, `UNPACK_ERROR`
+- ✅ Request and response DTOs
+
+#### DELIVERABLE 2 — Frontend Simulator Panel
+- ✅ "Simulator" tab in `ProtocolEditor.tsx` (alongside "Configuration")
+- ✅ MTI selector with all standard ISO8583 MTIs
+- ✅ Field input table with dictionary labels, format hints, and abbreviations
+- ✅ Pre-built templates for 0100 (Auth), 0200 (Financial), 0420 (Reversal)
+- ✅ Send button with loading state
+- ✅ Response viewer: decoded fields, Field 39 response code descriptions, copy-to-clipboard
+- ✅ Raw hex toggles for request and response
+- ✅ Endpoint-not-active warning banner
+
+#### DELIVERABLE 3 — Scenario State Inspector (Backend)
+- ✅ `GET /api/scenarios/{id}/state/details` — returns currentState, initialState, executionCount, stateVariables, active
+- ✅ `ScenarioService.getExecutionCount()` — reads from Redis
+- ✅ `ScenarioService.getStateVariables()` — reads global Redis hash
+
+#### DELIVERABLE 4 — Frontend State Inspector
+- ✅ `ScenarioStateInspector` component embedded in `ScenarioEditor.tsx`
+- ✅ Live current state, execution count, active status
+- ✅ Script variables table
+- ✅ 5-second auto-refresh
+- ✅ Manual refresh button
+
+### Success Criteria
+
+- ✅ User can configure an ISO8583 endpoint, open the Simulator tab, select MTI 0100, fill fields, send, and receive a decoded response
+- ✅ User can open the Scenario editor, see the current state, execution count, and any Redis script variables stored during scenario execution
+- ✅ Backend build: SUCCESSFUL
+- ✅ Backend tests: ALL PASS
+- ✅ Frontend build: SUCCESSFUL
+- ✅ Frontend TypeScript: CLEAN
+
+---
+
+## Sprint 1 — COMPLETE ✅
 
 ### Name
 

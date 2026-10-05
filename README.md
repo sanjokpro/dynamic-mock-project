@@ -15,6 +15,8 @@ Simulate **REST, GraphQL, gRPC, and ISO8583** financial protocols with stateful 
 - Native ISO8583 TCP server powered by jPOS Q2
 - **Data Dictionary**: Labeled field lookup for all 128 ISO 8583:1987 standard fields with search/autocomplete
 - **Custom Packager Upload**: Upload your bank's custom `packager.xml` (Postilion, Base24, custom dialects) via UI
+- **Message Simulator**: Send live ISO8583 test messages from the browser — no external tooling needed. Construct requests with dictionary-powered field inputs, view decoded responses with field labels, and inspect raw hex
+- **Scenario State Inspector**: Live Redis state viewer — see current state, execution count, and script variables; auto-refreshes every 5 seconds
 - Stateful transaction flows: Authorization → Capture → Reversal → Refund
 - MTI-based routing with field matchers
 

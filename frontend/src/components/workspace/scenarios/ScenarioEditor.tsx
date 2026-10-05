@@ -2,8 +2,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { useScenarios } from '@/hooks/useScenarios';
+import { useScenarioStateDetails } from '@/hooks/useIso8583';
 import { useTheme } from '@/context/ThemeContext';
-import { Loader2, GitBranch, Play, StopCircle, RotateCcw, Trash2, ArrowRight, Clock, Code, LayoutGrid, List, Plus } from 'lucide-react';
+import { Loader2, GitBranch, Play, StopCircle, RotateCcw, Trash2, ArrowRight, Clock, Code, LayoutGrid, List, Plus, Activity, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDialogs } from '@/context/DialogContext';
 import { toast } from 'sonner';
@@ -238,6 +239,9 @@ export function ScenarioEditor() {
                           <Trash2 className="h-3 w-3" /> Delete
                         </button>
                       </div>
+
+                      {/* State Inspector */}
+                      <ScenarioStateInspector scenarioId={scenario.id} scenarioName={scenario.name} />
                     </div>
                   )}
                 </div>
@@ -330,5 +334,101 @@ function ScenarioFlowDiagram({ states, transitions, currentState }: { states: an
       <Background color="#334155" gap={20} />
       <Controls showInteractive={false} className="[&>button]:bg-card [&>button]:border-border [&>button]:text-muted-foreground" />
     </ReactFlow>
+  );
+}
+
+// ===================== Scenario State Inspector =====================
+
+function ScenarioStateInspector({ scenarioId, scenarioName }: { scenarioId: string; scenarioName: string }) {
+  const { data, isLoading, isFetching, refetch } = useScenarioStateDetails(scenarioId);
+
+  const variables = data?.stateVariables ?? {};
+  const varEntries = Object.entries(variables);
+
+  return (
+    <div className="mx-4 mb-4 border rounded-lg bg-muted/5 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/10">
+        <div className="flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-violet-500" />
+          <span className="text-[10px] font-bold uppercase tracking-wider">State Inspector</span>
+          {isFetching && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />}
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          title="Refresh state (auto-refreshes every 5s)"
+        >
+          <RefreshCw className="h-2.5 w-2.5" /> Refresh
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-4 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </div>
+      ) : (
+        <div className="p-3 space-y-3">
+          {/* Current State + Exec Count */}
+          <div className="flex items-center gap-4">
+            <div className="space-y-0.5">
+              <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">Current State</div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="text-xs font-bold font-mono text-primary">{data?.currentState ?? '—'}</span>
+                {data?.currentState === data?.initialState && (
+                  <span className="text-[8px] text-muted-foreground bg-muted px-1 py-0.5 rounded uppercase">Initial</span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">Executions</div>
+              <span className="text-xs font-bold tabular-nums">{data?.executionCount ?? 0}</span>
+            </div>
+            <div className="space-y-0.5">
+              <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">Status</div>
+              <span className={cn(
+                'text-[10px] font-medium px-1.5 py-0.5 rounded',
+                data?.active ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'
+              )}>
+                {data?.active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+
+          {/* Script Variables */}
+          <div className="space-y-1">
+            <div className="text-[9px] font-medium text-muted-foreground uppercase tracking-wider">
+              Script Variables {varEntries.length > 0 && `(${varEntries.length})`}
+            </div>
+            {varEntries.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground italic">
+                No variables stored yet. Run a scenario with a script that sets <code className="font-mono bg-muted px-1 rounded text-[9px]">state.put(key, value)</code>.
+              </p>
+            ) : (
+              <div className="border rounded overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-muted/20">
+                      <th className="text-left px-2 py-1 text-[9px] text-muted-foreground font-medium">Key</th>
+                      <th className="text-left px-2 py-1 text-[9px] text-muted-foreground font-medium">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {varEntries.map(([key, value]) => (
+                      <tr key={key} className="hover:bg-muted/10">
+                        <td className="px-2 py-1 text-[10px] font-mono text-muted-foreground">{key}</td>
+                        <td className="px-2 py-1 text-[10px] font-mono truncate max-w-[200px]" title={String(value)}>
+                          {String(value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
