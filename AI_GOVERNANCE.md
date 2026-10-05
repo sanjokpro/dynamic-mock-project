@@ -74,6 +74,40 @@ Agents must verify:
 - **Frontend**: lint, typecheck, build
 - **Backend**: test, build
 
+## Repository Hygiene Rule
+
+Before any commit or push, verify that only source code,
+documentation, configuration, and intentionally versioned
+assets are staged.
+
+The following must never be committed:
+
+- Build artifacts
+- Downloaded runtime distributions
+- Generated coverage reports
+- Local caches
+- Temporary files
+- IDE metadata
+- Logs
+- Downloaded tool archives
+
+Examples:
+
+- .gradle/
+- build/
+- dist/
+- coverage/
+- node_modules/
+- *.zip
+- *.tar.gz
+- *.log
+
+If new files appear unexpectedly, investigate their purpose
+before staging or committing.
+
+When uncertain, treat generated artifacts as excluded until
+proven otherwise.
+
 ## ENTERPRISE VISION
 The future roadmap includes the following enterprise capabilities:
 - White Labeling
@@ -95,6 +129,138 @@ A sprint is complete only when:
 3. Documentation updated.
 4. Screenshots updated.
 5. User workflow validated manually.
+
+## Sprint Release Audit Rule
+
+A sprint is not considered complete until it passes a release audit.
+
+Before declaring:
+
+✅ Sprint Complete
+
+the AI must perform the following checks.
+
+------------------------------------------------
+1. Build Audit
+------------------------------------------------
+
+Backend:
+
+- compile
+- test
+
+Frontend:
+
+- build
+- tests
+- type-check (if applicable)
+
+Results must be documented.
+
+------------------------------------------------
+2. Repository Audit
+------------------------------------------------
+
+Review:
+
+git status
+
+Expected:
+
+working tree clean
+
+Review:
+
+git diff --stat
+
+Confirm all modified files are expected.
+
+------------------------------------------------
+3. Artifact Audit
+------------------------------------------------
+
+Search for:
+
+- build artifacts
+- caches
+- temporary files
+- downloaded dependencies
+
+Examples:
+
+- .gradle/
+- node_modules/
+- coverage/
+- ci_build/
+- *.zip
+- *.log
+
+Confirm these are not tracked.
+
+------------------------------------------------
+4. Large File Audit
+------------------------------------------------
+
+Identify:
+
+- files greater than 5 MB
+- files greater than 25 MB
+
+All large files must be manually reviewed.
+
+Any file greater than 50 MB requires explicit justification.
+
+------------------------------------------------
+5. Documentation Audit
+------------------------------------------------
+
+Verify updates where applicable:
+
+- CHANGELOG.md
+- README.md
+- WORKFLOW.md
+
+Ensure documentation matches delivered functionality.
+
+------------------------------------------------
+6. Push Readiness Audit
+------------------------------------------------
+
+Verify:
+
+- branch state
+- commit history
+- no unresolved conflicts
+- no accidental commits
+
+Confirm repository is ready for push.
+
+------------------------------------------------
+7. Audit Report
+------------------------------------------------
+
+Generate:
+
+SPRINT_RELEASE_AUDIT.md
+
+Include:
+
+- Build Status
+- Test Status
+- Repository Status
+- Artifact Review
+- Large File Review
+- Documentation Status
+- Push Readiness
+
+Final Result:
+
+PASS
+or
+FAIL
+
+Only PASS allows sprint completion.
+
 
 ## Differentiation Rule
 
@@ -207,3 +373,74 @@ over generic REST mocking features.
 - **Persistence Mapping Rules**: Any persistence-specific metadata must be handled in the Infrastructure layer using mapping or separate Persistence Entities.
 - **Explicit Logic**: No hidden logic, reflection, or prototype manipulation. Use explicit composition and type-safe patterns.
 - **Test-Driven Surgical Updates**: Maintain 100% test coverage. Every code change requires a corresponding test update.
+
+## New File Review Rule
+
+Before committing newly created, downloaded, generated, or imported files,
+their purpose must be understood and documented.
+
+AI agents must not blindly stage all files using:
+
+- git add .
+- git add -A
+
+without first reviewing unexpected additions.
+
+Mandatory review triggers:
+
+1. Any individual file larger than 5 MB
+2. Any new directory containing more than 25 files
+3. Any archive file
+   - *.zip
+   - *.tar
+   - *.tar.gz
+   - *.rar
+4. Any generated output directory
+   - build/
+   - dist/
+   - coverage/
+   - ci_build/
+   - reports/
+5. Any dependency cache
+   - .gradle/
+   - node_modules/
+   - .m2/
+6. Any unknown file type
+
+For each triggered item the AI must determine:
+
+- Why does it exist?
+- Was it created intentionally?
+- Is it source code?
+- Is it generated output?
+- Should it be version controlled?
+
+Files must be classified as:
+
+- REQUIRED_TO_COMMIT
+- OPTIONAL_TO_COMMIT
+- DO_NOT_COMMIT
+
+Unknown files must never be committed until classified.
+
+Guiding Principle:
+
+Never commit files whose purpose is not understood.
+
+## Large File Safety Rule
+
+Before every push, review all tracked files larger than 10 MB.
+
+AI agents must execute a large file review and explain:
+
+- Why the file exists
+- Whether it is source code
+- Whether it belongs in version control
+
+Any tracked file larger than 50 MB requires explicit approval.
+
+Files larger than 100 MB must be treated as invalid until proven otherwise.
+
+Default assumption:
+
+Large files are accidental and should not be committed.
