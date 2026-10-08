@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — Sprint 3 (2026-10-06)
+
+### Added
+
+#### Reference Banking Sandbox
+- `banking-sandbox.json` — Pre-configured Sandbox bundle containing an active ISO8583 Simulator endpoint and a stateful "Card Payment Flow" scenario (INITIAL -> AUTHORIZED -> CAPTURED -> REVERSED -> REFUNDED).
+- `POST /api/sandbox/load` — API endpoint in `SandboxController` that idempotent-loads the Sandbox bundle into the active environment without needing server restart.
+- First-Time User Experience — Frontend `RequestPanel` empty state updated to include a prominent **"Load Reference Banking Sandbox (5-Minute Quickstart)"** button.
+- `BANKING_SANDBOX_TUTORIAL.md` — Step-by-step tutorial on how to use the sandbox to observe state transitions.
+- SVG placeholders for docs/assets.
+
+### Changed
+- `README.md` — Repositioned project as an Open Source Enterprise Integration Simulation Platform, removed generic mock server language, added sandbox quickstart.
+
+---
+
 ## [Unreleased] — Sprint 2 (2026-10-04)
 
 ### Added

@@ -108,12 +108,41 @@ export function RequestPanel() {
   };
 
   if (!activeRoute) {
+    const handleLoadSandbox = async () => {
+      try {
+        const res = await fetch('/api/sandbox/load', { method: 'POST' });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          alert('Failed to load sandbox');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load sandbox');
+      }
+    };
+
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4 bg-background">
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-6 bg-background">
         <div className="p-4 bg-muted/20 rounded-full">
           <Play className="h-8 w-8 opacity-20" />
         </div>
-        <p className="text-sm">Select a stub from the sidebar to start editing</p>
+        <div className="text-center space-y-2">
+          <p className="text-sm">Select a stub from the sidebar to start editing</p>
+          <p className="text-xs opacity-50">or</p>
+        </div>
+        
+        <button 
+          onClick={handleLoadSandbox}
+          className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-primary/20 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all group"
+        >
+          <span className="font-semibold text-primary group-hover:text-primary/80 text-lg">
+            Load Reference Banking Sandbox (5-Minute Quickstart)
+          </span>
+          <span className="text-sm opacity-70">
+            Authorization → Capture → Reversal → State Transitions
+          </span>
+        </button>
       </div>
     );
   }

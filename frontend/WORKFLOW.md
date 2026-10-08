@@ -36,7 +36,46 @@ Rules:
 
 # Current Sprint
 
-## Sprint 2
+## Sprint 4
+
+### Name
+
+Authentication Foundation
+
+### Goal
+
+Establish user context and local authentication.
+
+---
+
+## Sprint 3 — COMPLETE ✅
+
+### Name
+
+Reference Banking Sandbox & Product Packaging
+
+### Goal
+
+Package the ISO8583 capabilities into a 1-click enterprise sandbox that delivers a 5-minute "wow" moment.
+
+### Deliverables
+
+- ✅ `banking-sandbox.json` pre-configured bundle
+- ✅ `POST /api/sandbox/load` Sandbox API
+- ✅ 1-click First-Time User Experience UX
+- ✅ Repositioned README.md
+- ✅ `BANKING_SANDBOX_TUTORIAL.md`
+- ✅ Assets & Screenshots
+
+### Status
+
+✅ **SPRINT 3 COMPLETE** — 2026-10-06
+
+See: `SPRINT_03_COMPLETION_REPORT.md`
+
+---
+
+## Sprint 2 — COMPLETE ✅
 
 ### Name
 

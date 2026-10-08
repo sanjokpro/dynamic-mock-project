@@ -1,0 +1,85 @@
+{
+  "scenario": {
+    "name": "Card Payment Flow",
+    "description": "Reference Banking Sandbox Stateful Flow",
+    "initialState": "INITIAL",
+    "active": true,
+    "states": [
+      {
+        "name": "INITIAL",
+        "transitions": [
+          { "targetState": "AUTHORIZED", "condition": "request.mti == '0100'" }
+        ]
+      },
+      {
+        "name": "AUTHORIZED",
+        "transitions": [
+          { "targetState": "CAPTURED", "condition": "request.mti == '0220'" },
+          { "targetState": "REVERSED", "condition": "request.mti == '0420'" }
+        ]
+      },
+      {
+        "name": "CAPTURED",
+        "transitions": [
+          { "targetState": "REFUNDED", "condition": "request.mti == '0200'" },
+          { "targetState": "REVERSED", "condition": "request.mti == '0420'" }
+        ]
+      },
+      { "name": "REVERSED" },
+      { "name": "REFUNDED" }
+    ]
+  },
+  "endpoint": {
+    "name": "Banking Sandbox ISO8583",
+    "description": "Pre-configured ISO8583 simulator",
+    "port": 8583,
+    "isolatedPort": false,
+    "headerLengthType": "2BYTE",
+    "encoding": "ASCII",
+    "active": true,
+    "mocks": [
+      {
+        "name": "Authorization (0100 -> 0110)",
+        "mti": "0100",
+        "responseMti": "0110",
+        "responseCode": "00",
+        "scenarioName": "Card Payment Flow",
+        "scriptEnabled": true,
+        "scriptLanguage": "js",
+        "script": "if (request.fields && request.fields['4']) { state.lastAuthAmount = request.fields['4']; }",
+        "priority": 10,
+        "enabled": true
+      },
+      {
+        "name": "Capture (0220 -> 0230)",
+        "mti": "0220",
+        "responseMti": "0230",
+        "responseCode": "00",
+        "scenarioName": "Card Payment Flow",
+        "scriptEnabled": false,
+        "priority": 10,
+        "enabled": true
+      },
+      {
+        "name": "Reversal (0420 -> 0430)",
+        "mti": "0420",
+        "responseMti": "0430",
+        "responseCode": "00",
+        "scenarioName": "Card Payment Flow",
+        "scriptEnabled": false,
+        "priority": 10,
+        "enabled": true
+      },
+      {
+        "name": "Refund (0200 -> 0210)",
+        "mti": "0200",
+        "responseMti": "0210",
+        "responseCode": "00",
+        "scenarioName": "Card Payment Flow",
+        "scriptEnabled": false,
+        "priority": 10,
+        "enabled": true
+      }
+    ]
+  }
+}

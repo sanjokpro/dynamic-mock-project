@@ -488,6 +488,7 @@ public class Iso8583Server {
                 requestFields.put(String.valueOf(i), request.getString(i));
             }
         }
+        requestFields.put("mti", mti);
 
         context.put("request", requestFields);
         context.put("mti", mti);

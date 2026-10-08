@@ -383,10 +383,17 @@ public class ScenarioService {
             // For complex conditions, we could integrate with the ScriptEngine
             
             if (condition.contains("==")) {
+                log.info("CONTEXT KEYS: {}", context.keySet());
+                if (context.containsKey("request")) {
+                    log.info("REQUEST: {}", context.get("request"));
+                }
                 String[] parts = condition.split("==", 2);
-                String left = evaluateExpression(parts[0].trim(), context);
+                String leftRaw = parts[0].trim();
+                String left = evaluateExpression(leftRaw, context);
                 String right = parts[1].trim().replace("'", "").replace("\"", "");
-                return left.equals(right);
+                boolean result = left.equals(right);
+                log.info("EVAL CONDITION: '{}' -> leftRaw='{}', left='{}', right='{}', result={}", condition, leftRaw, left, right, result);
+                return result;
             }
             
             if (condition.contains("!=")) {

@@ -3,9 +3,19 @@
 [![CI](https://github.com/your-org/dynamic-mock-project/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/dynamic-mock-project/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-Simulate **REST, GraphQL, gRPC, and ISO8583** financial protocols with stateful scenarios. Self-hosted. Built for banks, payment switches, and fintechs.
+Replace your test switches and legacy stubs with a single platform that speaks ISO8583 natively, supports stateful transaction flows (Auth → Capture → Reversal), and runs entirely within your infrastructure. Simulate REST, GraphQL, gRPC, and ISO8583 with stateful scenarios. Built for banks, payment switches, and fintechs.
 
-> **The only open-source mock platform with native ISO8583 simulation, stateful scenario state machines, and GraalVM polyglot scripting — all in a single self-hosted deployment.**
+![ISO8583 Simulator](docs/assets/simulator.svg)
+*ISO8583 Simulator with live decoding and data dictionary.*
+
+![State Inspector](docs/assets/inspector.svg)
+*Live Scenario State Inspector tracking transactional flows.*
+
+## 🚀 Try the 5-Minute Banking Sandbox
+1. Run `docker-compose up`
+2. Open `http://localhost/`
+3. Click **Load Reference Banking Sandbox** to instantly provision a complete payment mock environment.
+4. Check out the [Banking Sandbox Tutorial](BANKING_SANDBOX_TUTORIAL.md) to send your first ISO8583 Authorization.
 
 ## Features
 
