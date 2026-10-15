@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Save, ChevronDown, Loader2, Plus, Trash2, Check } from 'lucide-react';
 import { useTestClient } from '@/hooks/useTestClient';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -9,6 +9,7 @@ import { CodeEditor } from './CodeEditor';
 import { MockRoute } from '@/types';
 import { ProtocolEditor } from './protocols/ProtocolEditor';
 import { ScenarioEditor } from './scenarios/ScenarioEditor';
+import { cn } from '@/lib/utils';
 
 type Tab = 'params' | 'headers' | 'request-body' | 'matchers' | 'body' | 'scripts';
 
@@ -26,6 +27,7 @@ export function RequestPanel() {
   const [preScript, setPreScript] = useState('');
   const [postScript, setPostScript] = useState('');
   const [queryParams, setQueryParams] = useState<Record<string, string>>({});
+  const [requestHeaders, setRequestHeaders] = useState<Record<string, string>>({});
   const [responseHeaders, setResponseHeaders] = useState<Record<string, string>>({});
   const [requestBodyType, setRequestBodyType] = useState<'none' | 'json' | 'form' | 'raw'>('none');
   const [requestBodyContent, setRequestBodyContent] = useState('');
@@ -38,18 +40,18 @@ export function RequestPanel() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    console.log("RequestPanel activeRoute changed:", activeRoute);
     if (activeRoute) {
       setMethod(activeRoute.method || 'GET');
-      const path = activeRoute.path || '';
-      setPath(path);
-      setUrl(`{{BASE_URL}}${path.startsWith('/') ? path : '/' + path}`);
+      const activePath = activeRoute.path || '';
+      setPath(activePath);
+      setUrl(`{{BASE_URL}}${activePath.startsWith('/') ? activePath : '/' + activePath}`);
       setResponseStatus(activeRoute.responseStatus || 200);
       setResponseTemplate(activeRoute.responseTemplate || '');
       setPreScript(activeRoute.preScript || '');
       setPostScript(activeRoute.postScript || '');
       setQueryParams(activeRoute.queryParams || {});
       setResponseHeaders(activeRoute.responseHeaders || {});
+      setRequestHeaders({});
       setMatchers(activeRoute.matchers || {});
       setRequestBodyType('none');
       setRequestBodyContent('');
@@ -59,10 +61,20 @@ export function RequestPanel() {
   const handleSave = async () => {
     if (!activeRoute) return;
     
+    // Derive effective path from URL bar or current path
+    let effectivePath = path;
+    if (url) {
+      const clean = url.replace(/\{\{BASE_URL\}\}/g, '').trim();
+      if (clean) {
+        effectivePath = clean.startsWith('/') ? clean : '/' + clean;
+      }
+    }
+
     const updatedRoute: Partial<MockRoute> & { id: string } = {
       id: activeRoute.id,
       method: method as any,
-      path,
+      path: effectivePath,
+      active: true, // Ensure route is active and registered when saved
       responseStatus,
       responseTemplate,
       queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
@@ -86,17 +98,17 @@ export function RequestPanel() {
   };
 
   const handleSend = () => {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...requestHeaders };
     if (activeEnvironment) {
       headers['X-Dynamic-Mock-Env'] = activeEnvironment.id;
     }
 
     const body = requestBodyType !== 'none' && requestBodyContent ? requestBodyContent : undefined;
-    if (requestBodyType === 'json' && body) {
+    if (requestBodyType === 'json' && body && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json';
-    } else if (requestBodyType === 'raw' && body) {
+    } else if (requestBodyType === 'raw' && body && !headers['Content-Type']) {
       headers['Content-Type'] = 'text/plain';
-    } else if (requestBodyType === 'form' && body) {
+    } else if (requestBodyType === 'form' && body && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
@@ -134,7 +146,7 @@ export function RequestPanel() {
         
         <button 
           onClick={handleLoadSandbox}
-          className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-primary/20 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all group"
+          className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-primary/20 rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer"
         >
           <span className="font-semibold text-primary group-hover:text-primary/80 text-lg">
             Load Reference Banking Sandbox (5-Minute Quickstart)
@@ -175,7 +187,12 @@ export function RequestPanel() {
             <div className="px-2 text-muted-foreground text-xs font-mono">/mock</div>
             <input 
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setUrl(val);
+                const clean = val.replace(/\{\{BASE_URL\}\}/g, '').trim();
+                setPath(clean.startsWith('/') ? clean : (clean ? '/' + clean : '/'));
+              }}
               placeholder="{{BASE_URL}}/api/example"
               className="px-3 py-1.5 text-sm bg-transparent border-none focus:outline-none w-96 font-mono"
             />
@@ -183,7 +200,7 @@ export function RequestPanel() {
           <button 
             onClick={handleSend}
             disabled={isExecuting}
-            className="bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
             Send
@@ -194,7 +211,7 @@ export function RequestPanel() {
             onClick={handleSave}
             disabled={isSaving}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all cursor-pointer",
               isSuccess ? "bg-green-500 text-white" : "bg-accent hover:bg-accent/80 text-foreground"
             )}
             title="Save changes"
@@ -219,7 +236,7 @@ export function RequestPanel() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as Tab)}
               className={cn(
-                "px-4 py-2 transition-colors",
+                "px-4 py-2 transition-colors cursor-pointer",
                 activeTab === tab.id ? "border-b-2 border-primary font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -228,19 +245,34 @@ export function RequestPanel() {
           ))}
         </div>
         <div className="flex-1 overflow-auto">
-          {activeTab === 'params' && <div className="p-4"><KeyValueEditor title="Query Parameters" entries={queryParams} onChange={setQueryParams} /></div>}
+          {activeTab === 'params' && (
+            <div className="p-4">
+              <KeyValueEditor title="Query Parameters" entries={queryParams} onChange={setQueryParams} />
+            </div>
+          )}
           {activeTab === 'headers' && (
             <div className="p-4 space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Status Code:</span>
-                <input 
-                  type="number"
-                  value={responseStatus}
-                  onChange={(e) => setResponseStatus(parseInt(e.target.value))}
-                  className="w-20 bg-background border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
+              <KeyValueEditor 
+                title="Request Headers (Sent with Test Request)" 
+                entries={requestHeaders} 
+                onChange={setRequestHeaders} 
+              />
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-bold text-muted-foreground uppercase">Response Status Code:</span>
+                  <input 
+                    type="number"
+                    value={responseStatus}
+                    onChange={(e) => setResponseStatus(parseInt(e.target.value) || 200)}
+                    className="w-20 bg-background border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <KeyValueEditor 
+                  title="Response Headers (Returned by Mock)" 
+                  entries={responseHeaders} 
+                  onChange={setResponseHeaders} 
                 />
               </div>
-              <KeyValueEditor title="Response Headers" entries={responseHeaders} onChange={setResponseHeaders} />
             </div>
           )}
           {activeTab === 'request-body' && (
@@ -250,7 +282,7 @@ export function RequestPanel() {
                 <select
                   value={requestBodyType}
                   onChange={(e) => setRequestBodyType(e.target.value as any)}
-                  className="bg-background border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none"
+                  className="bg-background border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none cursor-pointer"
                 >
                   <option value="none">No Body</option>
                   <option value="json">JSON</option>
@@ -275,7 +307,11 @@ export function RequestPanel() {
               )}
             </div>
           )}
-          {activeTab === 'matchers' && <div className="p-4"><MatcherEditor matchers={matchers} onChange={setMatchers} /></div>}
+          {activeTab === 'matchers' && (
+            <div className="p-4">
+              <MatcherEditor matchers={matchers} onChange={setMatchers} />
+            </div>
+          )}
           {activeTab === 'body' && (
             <div className="h-full">
               <CodeEditor 
@@ -315,29 +351,43 @@ export function RequestPanel() {
   );
 }
 
-function KeyValueEditor({ title, entries = {}, onChange }: { title: string; entries?: Record<string, string>; onChange?: (entries: Record<string, string>) => void }) {
-  const [rows, setRows] = useState<Array<{ key: string; value: string }>>(() =>
-    Object.entries(entries).map(([key, value]) => ({ key, value }))
+function KeyValueEditor({ 
+  title, 
+  entries = {}, 
+  onChange 
+}: { 
+  title: string; 
+  entries?: Record<string, string>; 
+  onChange?: (entries: Record<string, string>) => void 
+}) {
+  const [rows, setRows] = useState<Array<{ id: string; key: string; value: string }>>(() =>
+    Object.entries(entries).map(([key, value], idx) => ({ id: `row-${idx}-${key}`, key, value }))
   );
 
+  const lastEmittedRef = useRef<string>(JSON.stringify(entries));
+
   useEffect(() => {
-    setRows(Object.entries(entries).map(([key, value]) => ({ key, value })));
+    const entriesStr = JSON.stringify(entries);
+    if (entriesStr !== lastEmittedRef.current) {
+      setRows(Object.entries(entries).map(([key, value], idx) => ({ id: `row-${idx}-${key}`, key, value })));
+      lastEmittedRef.current = entriesStr;
+    }
   }, [entries]);
 
-  const emitChange = (newRows: Array<{ key: string; value: string }>) => {
+  const emitChange = (newRows: Array<{ id: string; key: string; value: string }>) => {
     const result: Record<string, string> = {};
     newRows.forEach(({ key, value }) => {
       if (key.trim()) {
         result[key.trim()] = value;
       }
     });
+    lastEmittedRef.current = JSON.stringify(result);
     onChange?.(result);
   };
 
   const addRow = () => {
-    const newRows = [...rows, { key: '', value: '' }];
+    const newRows = [...rows, { id: `row-${Date.now()}-${Math.random()}`, key: '', value: '' }];
     setRows(newRows);
-    emitChange(newRows);
   };
 
   const updateRow = (index: number, field: 'key' | 'value', val: string) => {
@@ -356,16 +406,20 @@ function KeyValueEditor({ title, entries = {}, onChange }: { title: string; entr
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{title}</span>
-        <button onClick={addRow} className="flex items-center gap-1 text-xs text-primary hover:underline transition-colors">
+        <button 
+          type="button" 
+          onClick={addRow} 
+          className="flex items-center gap-1 text-xs text-primary hover:underline transition-colors cursor-pointer"
+        >
           <Plus className="h-3 w-3" /> Add Row
         </button>
       </div>
       <div className="space-y-2">
         {rows.length === 0 && (
-          <div className="text-[10px] text-muted-foreground italic py-1">No entries defined.</div>
+          <div className="text-[10px] text-muted-foreground italic py-1">No entries defined. Click "Add Row" to add one.</div>
         )}
         {rows.map((row, index) => (
-          <div key={index} className="flex items-center gap-2 group">
+          <div key={row.id} className="flex items-center gap-2 group">
             <input
               placeholder="Key"
               value={row.key}
@@ -379,8 +433,10 @@ function KeyValueEditor({ title, entries = {}, onChange }: { title: string; entr
               className="flex-1 bg-background border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none"
             />
             <button
+              type="button"
               onClick={() => deleteRow(index)}
-              className="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+              className="p-1 text-muted-foreground opacity-60 hover:opacity-100 hover:text-destructive transition-all cursor-pointer"
+              title="Delete row"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -392,8 +448,6 @@ function KeyValueEditor({ title, entries = {}, onChange }: { title: string; entr
 }
 
 function MatcherEditor({ matchers, onChange }: { matchers: Record<string, any>; onChange: (m: Record<string, any>) => void }) {
-  const headerEntries = Object.entries((matchers as any)?.headers || {}).map(([k, v]) => ({ key: k, value: v as string }));
-  const queryEntries = Object.entries((matchers as any)?.queryParams || {}).map(([k, v]) => ({ key: k, value: v as string }));
   const bodyMatchType = (matchers as any)?.bodyMatchType || 'none';
   const bodyMatchPattern = (matchers as any)?.bodyMatchPattern || '';
 
@@ -408,33 +462,13 @@ function MatcherEditor({ matchers, onChange }: { matchers: Record<string, any>; 
         <div className="space-y-3">
           <MatcherTypeCard
             title="Headers"
-            entries={headerEntries}
-            onAdd={() => {
-              const current = { ...((matchers as any)?.headers || {}) };
-              update({ headers: { ...current, ['']: '' } });
-            }}
-            onUpdate={(entries) => {
-              const result: Record<string, string> = {};
-              entries.forEach(({ key, value }: { key: string; value: string }) => {
-                if (key.trim()) result[key.trim()] = value;
-              });
-              update({ headers: Object.keys(result).length > 0 ? result : undefined });
-            }}
+            entries={(matchers as any)?.headers}
+            onChange={(headers) => update({ headers })}
           />
           <MatcherTypeCard
             title="Query Params"
-            entries={queryEntries}
-            onAdd={() => {
-              const current = { ...((matchers as any)?.queryParams || {}) };
-              update({ queryParams: { ...current, ['']: '' } });
-            }}
-            onUpdate={(entries) => {
-              const result: Record<string, string> = {};
-              entries.forEach(({ key, value }: { key: string; value: string }) => {
-                if (key.trim()) result[key.trim()] = value;
-              });
-              update({ queryParams: Object.keys(result).length > 0 ? result : undefined });
-            }}
+            entries={(matchers as any)?.queryParams}
+            onChange={(queryParams) => update({ queryParams })}
           />
           <div className="border rounded-lg p-3 bg-muted/10">
             <div className="flex items-center justify-between mb-2">
@@ -444,7 +478,7 @@ function MatcherEditor({ matchers, onChange }: { matchers: Record<string, any>; 
               <select
                 value={bodyMatchType}
                 onChange={(e) => update({ bodyMatchType: e.target.value || 'none' })}
-                className="w-full bg-background border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none"
+                className="w-full bg-background border rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none cursor-pointer"
               >
                 <option value="none">No body matching</option>
                 <option value="equals">Equals</option>
@@ -463,8 +497,9 @@ function MatcherEditor({ matchers, onChange }: { matchers: Record<string, any>; 
                   />
                   {bodyMatchPattern && (
                     <button
+                      type="button"
                       onClick={() => update({ bodyMatchPattern: '' })}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -479,40 +514,92 @@ function MatcherEditor({ matchers, onChange }: { matchers: Record<string, any>; 
   );
 }
 
-function MatcherTypeCard({ title, entries, onAdd, onUpdate }: { title: string; entries: Array<{ key: string; value: string }>; onAdd: () => void; onUpdate: (entries: Array<{ key: string; value: string }>) => void }) {
+function MatcherTypeCard({ 
+  title, 
+  entries = {}, 
+  onChange 
+}: { 
+  title: string; 
+  entries?: Record<string, string>; 
+  onChange: (result?: Record<string, string>) => void 
+}) {
+  const [rows, setRows] = useState<Array<{ id: string; key: string; value: string }>>(() =>
+    Object.entries(entries || {}).map(([key, value], idx) => ({ id: `match-${idx}-${key}`, key, value }))
+  );
+
+  const lastEmittedRef = useRef<string>(JSON.stringify(entries || {}));
+
+  useEffect(() => {
+    const entriesStr = JSON.stringify(entries || {});
+    if (entriesStr !== lastEmittedRef.current) {
+      setRows(Object.entries(entries || {}).map(([key, value], idx) => ({ id: `match-${idx}-${key}`, key, value })));
+      lastEmittedRef.current = entriesStr;
+    }
+  }, [entries]);
+
+  const emitChange = (newRows: Array<{ id: string; key: string; value: string }>) => {
+    const result: Record<string, string> = {};
+    newRows.forEach(({ key, value }) => {
+      if (key.trim()) {
+        result[key.trim()] = value;
+      }
+    });
+    lastEmittedRef.current = JSON.stringify(result);
+    onChange(Object.keys(result).length > 0 ? result : undefined);
+  };
+
+  const addRow = () => {
+    const newRows = [...rows, { id: `match-${Date.now()}-${Math.random()}`, key: '', value: '' }];
+    setRows(newRows);
+  };
+
+  const updateRow = (index: number, field: 'key' | 'value', val: string) => {
+    const newRows = rows.map((row, i) => (i === index ? { ...row, [field]: val } : row));
+    setRows(newRows);
+    emitChange(newRows);
+  };
+
+  const deleteRow = (index: number) => {
+    const newRows = rows.filter((_, i) => i !== index);
+    setRows(newRows);
+    emitChange(newRows);
+  };
+
   return (
     <div className="border rounded-lg p-3 bg-muted/10">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium">{title} Matchers</span>
-        <button onClick={onAdd} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded hover:bg-primary/20 transition-colors">Add Matcher</button>
+        <button 
+          type="button"
+          onClick={addRow} 
+          className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded hover:bg-primary/20 transition-colors cursor-pointer"
+        >
+          Add Matcher
+        </button>
       </div>
-      {entries.length === 0 && (
+      {rows.length === 0 && (
         <div className="text-[10px] text-muted-foreground italic">No matchers defined for {title.toLowerCase()}.</div>
       )}
-      {entries.map((entry, idx) => (
-        <div key={idx} className="flex items-center gap-2 mt-2 group">
+      {rows.map((row, idx) => (
+        <div key={row.id} className="flex items-center gap-2 mt-2 group">
           <input
             placeholder="Field name"
-            value={entry.key}
-            onChange={(e) => {
-              const updated = entries.map((r, i) => i === idx ? { ...r, key: e.target.value } : r);
-              onUpdate(updated);
-            }}
+            value={row.key}
+            onChange={(e) => updateRow(idx, 'key', e.target.value)}
             className="flex-1 bg-background border rounded px-2 py-1 text-xs font-mono focus:ring-1 focus:ring-primary outline-none"
           />
           <span className="text-xs text-muted-foreground">~</span>
           <input
             placeholder="Regex pattern"
-            value={entry.value}
-            onChange={(e) => {
-              const updated = entries.map((r, i) => i === idx ? { ...r, value: e.target.value } : r);
-              onUpdate(updated);
-            }}
+            value={row.value}
+            onChange={(e) => updateRow(idx, 'value', e.target.value)}
             className="flex-1 bg-background border rounded px-2 py-1 text-xs font-mono focus:ring-1 focus:ring-primary outline-none"
           />
           <button
-            onClick={() => onUpdate(entries.filter((_, i) => i !== idx))}
-            className="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+            type="button"
+            onClick={() => deleteRow(idx)}
+            className="p-1 text-muted-foreground opacity-60 hover:opacity-100 hover:text-destructive transition-all cursor-pointer"
+            title="Delete matcher"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -521,5 +608,3 @@ function MatcherTypeCard({ title, entries, onAdd, onUpdate }: { title: string; e
     </div>
   );
 }
-
-import { cn } from '@/lib/utils';
