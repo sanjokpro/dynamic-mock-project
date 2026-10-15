@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Globe, ChevronDown, Sun, Moon, Play, User, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings } from 'lucide-react';
+import { Globe, ChevronDown, Sun, Moon, Play, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings, LogOut } from 'lucide-react';
 import { useEnvironments } from '@/hooks/useEnvironments';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useCollections } from '@/hooks/useCollections';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { MockRoute } from '@/types';
 import { ImportModal } from './ImportModal';
@@ -29,10 +30,13 @@ export function Header() {
   const { activeEnvironment, setActiveEnvironment, panelLayout, setPanelLayout, setActiveRoute, toggleSidebar } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const { routes, createRoute } = useRoutes();
-  const userId = 'default-user';
+  const { user, logout } = useAuth();
+  const userId = user?.id ?? '';
   const { collections } = useCollections(userId);
   const { prompt } = useDialogs();
   const [envDropdownOpen, setEnvDropdownOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [envManagerOpen, setEnvManagerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,6 +61,9 @@ export function Header() {
       }
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -378,10 +385,38 @@ export function Header() {
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full ring-1 ring-background" />
         </button>
 
-        {/* Profile */}
-        <button className="h-7 w-7 rounded-full bg-gradient-to-tr from-violet-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white border border-white/20 shadow-sm hover:shadow-md transition-shadow">
-          <User className="h-3.5 w-3.5" />
-        </button>
+        {/* User menu */}
+        <div className="relative" ref={userMenuRef}>
+          <button
+            id="header-user-menu-btn"
+            onClick={() => setUserMenuOpen((v) => !v)}
+            className="h-7 w-7 rounded-full bg-gradient-to-tr from-violet-500 to-blue-500 flex items-center justify-center text-[10px] font-bold text-white border border-white/20 shadow-sm hover:shadow-md transition-shadow"
+            title={user?.username ?? 'Account'}
+            aria-haspopup="true"
+            aria-expanded={userMenuOpen}
+          >
+            {user?.username ? user.username.slice(0, 2).toUpperCase() : 'U'}
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-44 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium truncate">{user?.username}</p>
+                {user?.email && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{user.email}</p>
+                )}
+              </div>
+              <button
+                id="header-logout-btn"
+                onClick={() => { setUserMenuOpen(false); logout(); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />

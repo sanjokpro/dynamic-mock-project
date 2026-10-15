@@ -7,6 +7,7 @@ import { useRoutes } from '@/hooks/useRoutes';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDialogs } from '@/context/DialogContext';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { MockRoute } from '@/types';
 import { cn } from '@/lib/utils';
@@ -22,7 +23,8 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 export function Sidebar() {
-  const userId = 'default-user';
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const { collections, isLoading: isCollectionsLoading, createCollection, updateCollection, deleteCollection, addItemToCollection } = useCollections(userId);
   const { routes, isLoading: isRoutesLoading, createRoute } = useRoutes();
   const { setActiveRoute, activeRoute, setDrawerOpen, activeView, setActiveView } = useWorkspace();

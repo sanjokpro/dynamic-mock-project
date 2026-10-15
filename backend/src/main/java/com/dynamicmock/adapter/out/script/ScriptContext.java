@@ -39,5 +39,8 @@ public class ScriptContext {
     
     // Webhook configuration (trigger async webhook post-response)
     private Map<String, Object> webhook;
+
+    // Session identifier for concurrent QA scenario isolation
+    private String sessionId;
 }
 

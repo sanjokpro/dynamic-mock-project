@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { AuthProvider } from '@/context/AuthContext';
 import { WorkspaceProvider } from '@/context/WorkspaceContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { DialogProvider } from '@/context/DialogContext';
@@ -17,14 +18,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }));
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <DialogProvider>
-          <WorkspaceProvider>
-            {children}
-          </WorkspaceProvider>
-        </DialogProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <DialogProvider>
+            <WorkspaceProvider>
+              {children}
+            </WorkspaceProvider>
+          </DialogProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }

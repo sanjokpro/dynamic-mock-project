@@ -5,6 +5,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.0] — Sprint 4: Authentication Foundation & Multi-User Identity (2026-10-15)
+
+### Added
+
+#### Authentication Foundation
+- `POST /api/auth/login` — JWT-based authentication endpoint. Returns an HS256-signed token (8-hour lifetime by default).
+- `POST /api/auth/register` — Environment-variable-gated (`APP_AUTH_ALLOW_REGISTRATION`) self-service registration. Disabled by default.
+- `GET /api/auth/me` — Returns the authenticated user's profile (id, username, email).
+- `UserBootstrapRunner` — Seeds an initial administrator (`admin/admin`) on first boot when the `users` MongoDB collection is empty. Emits a loud warning if default credentials are still in use.
+- `User.java` domain entity — Pure Lombok-only domain entity (zero Spring Data / Jakarta / Jackson annotations) per Clean Architecture.
+- `UserRepository.java` — Output port interface for user persistence operations.
+- `JwtTokenService` — HS256 token issuance, validation, and claims extraction. Validates that the JWT secret is ≥ 32 characters on startup.
+- `JwtAuthenticationFilter` — `OncePerRequestFilter` that parses `Authorization: Bearer <token>` and populates the `SecurityContext`.
+- `SecurityConfig` — Stateless Spring Security filter chain: `/mock/**`, `/api/auth/**`, `/ws-traffic/**` are fully public; `/api/**` requires a valid JWT.
+- `PasswordEncoderConfig` — BCrypt strength 12 password hashing.
+- MongoDB `UserMongoEntity`, `UserMapper`, `MongoUserRepository`, and `UserRepositoryImpl` — Clean Architecture-aligned persistence adapter.
+- `AuthContext.tsx` — React context providing in-memory JWT token management (never persisted to `localStorage` or `sessionStorage`).
+- `useAuth.ts` — Convenience hook for consuming `AuthContext`.
+- `frontend/src/app/login/page.tsx` — Themed login page matching the existing dark/light design system with error handling and loading states.
+- `AuthGuard.tsx` — Client-side route guard; redirects unauthenticated users to `/login`.
+
+#### Scenario Session Namespacing
+- `X-Session-ID` request header support in `DynamicRouteDispatcher` — scopes Redis script state to `dynamic-mock:script-state:session:{sessionId}`.
+- `ScenarioService` namespacing overloads (`getCurrentState`, `setCurrentState`, `getExecutionCount`, `processTransition`, etc.) — full backward-compatible shared fallback preserved for Banking Sandbox tutorial.
+- `ScriptContext.sessionId` field — carries session scope through the GraalVM execution pipeline.
+
+#### Security Test Suite
+- `JwtTokenServiceTest` — token generation, validation, tampering, and weak-secret startup failure.
+- `ApiKeyAuthFilterTest` — Bearer short-circuit and constant-time key validation.
+- `AuthControllerTest` — MockMvc coverage of all auth endpoints.
+- `UserRepositoryImplTest` — MongoDB persistence integration tests.
+- `ScenarioServiceNamespacingTest` — concurrent session isolation verification.
+
+### Changed
+- `ApiKeyAuthFilter` — demoted to filter order 100; short-circuits immediately when `Authorization: Bearer` is present, delegating to Spring Security's JWT filter chain.
+- `DemoDataLoader` — resolves owner ID dynamically from the admin user in MongoDB instead of using the hardcoded string `"default-user"`.
+- `PostmanImportService` — parameterized user ID ownership; backward-compatible constructor retained.
+- `WebConfig` — CORS `allowedOrigins` now configurable via `APP_CORS_ALLOWED_ORIGINS` environment variable.
+- `Header.tsx` — displays authenticated username with an initials avatar and a Sign Out dropdown; `"default-user"` string eliminated.
+- `Sidebar.tsx` — uses authenticated user's ID for collection scoping; `"default-user"` string eliminated.
+- `providers.tsx` — `<AuthProvider>` added as the outermost context in the provider hierarchy.
+- `apiClient.ts` — request interceptor attaches `Authorization: Bearer <token>`; response interceptor redirects to `/login` on 401.
+- `docker-compose.yml` — added `APP_AUTH_JWT_SECRET`, `ADMIN_PASSWORD`, `APP_AUTH_ALLOW_REGISTRATION`, `APP_CORS_ALLOWED_ORIGINS` to `mock-server`; removed `NEXT_PUBLIC_API_KEY` from `frontend`.
+- `.env.example` files updated with authentication environment variable documentation.
+
+---
+
 ## [Unreleased] — Sprint 3 (2026-10-06)
 
 ### Added

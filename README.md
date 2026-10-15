@@ -111,8 +111,8 @@ See `backend/CLEAN_ARCHITECTURE.md` for detailed documentation.
 - **ISO8583**: jPOS framework with Q2 hot-deployment
 
 #### Frontend
-- **Framework**: Angular 17+ with TypeScript
-- **UI**: Angular Material with custom Nepali rupee papernote theme
+- **Framework**: Next.js App Router with TypeScript
+- **UI**: Tailwind CSS / React components with custom Nepali rupee papernote theme
 - **Editor**: Monaco Editor for script editing
 
 ## Getting Started
@@ -125,7 +125,6 @@ See `backend/CLEAN_ARCHITECTURE.md` for detailed documentation.
 - Redis 7.0+
 - GraalVM 23.1+ (for polyglot scripting)
 - Node.js 18+ and npm (for frontend)
-- Angular CLI 17+ (for frontend)
 
 ### One-Command Demo (Docker)
 
@@ -200,10 +199,10 @@ npm install
 
 2. Start the development server:
 ```bash
-npm start
+npm run dev
 ```
 
-The frontend will be available at `http://localhost:4200`
+The frontend will be available at `http://localhost:3000`
 
 For more details, see [frontend/README.md](frontend/README.md)
 
@@ -212,13 +211,13 @@ For more details, see [frontend/README.md](frontend/README.md)
 ## Build & Run Modes (Backend + UI)
 
 The project supports multiple build modes so you can either:
-- run **backend and Angular separately** during development, or
+- run **backend and Next.js separately** during development, or
 - build a **single self-contained artifact** (JAR/WAR) with the UI embedded, or
 - build a **WAR for external Tomcat**.
 
 All of these are controlled via **Gradle properties** (`packagingType`, `buildWithEmbeddedUi`) defined in `backend/build.gradle`.
 
-### 1. Dev: Backend + Angular Separate
+### 1. Dev: Backend + Next.js Separate
 
 - **Backend** (Spring Boot):
   ```bash
@@ -226,21 +225,21 @@ All of these are controlled via **Gradle properties** (`packagingType`, `buildWi
   gradle bootRun
   ```
 
-- **Frontend** (Angular dev server):
+- **Frontend** (Next.js dev server):
   ```bash
   cd frontend
   npm install --legacy-peer-deps
-  npm start     # or: ng serve
+  npm run dev
   ```
 
-- Angular app runs on `http://localhost:4200`
+- Next.js app runs on `http://localhost:3000`
 - Backend API runs on `http://localhost:8080/api`
 
-This is the recommended mode for daily development (hot reload on the Angular side).
+This is the recommended mode for daily development (Fast Refresh on the Next.js side).
 
 ### 2. Self-Contained JAR with Embedded UI
 
-Build Angular and bundle the `dist` output into Spring Boot static resources:
+Build Next.js (static export) and bundle the `out` directory into Spring Boot static resources:
 
 ```bash
 cd backend
@@ -253,7 +252,7 @@ java -jar build/libs/dynamic-mock-server-1.0.0-SNAPSHOT.jar
 ```
 
 - Backend API: `http://localhost:8080/api`
-- Angular UI (served by Spring Boot): `http://localhost:8080/`
+- Next.js UI (served by Spring Boot): `http://localhost:8080/`
 
 ### 3. Self-Contained WAR with Embedded Container + UI
 

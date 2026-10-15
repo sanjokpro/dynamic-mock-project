@@ -125,9 +125,10 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             // Check if route is linked to a scenario
             ScenarioState scenarioState = null;
             if (route.getScenarioName() != null && !route.getScenarioName().isEmpty()) {
-                scenarioState = scenarioService.getCurrentStateObject(route.getScenarioName());
+                scenarioState = scenarioService.getCurrentStateObject(route.getScenarioName(), scriptContext.getSessionId());
                 if (scenarioState != null) {
-                    log.debug("Using scenario '{}' state '{}'", route.getScenarioName(), scenarioState.getName());
+                    log.debug("Using scenario '{}' (sessionId: {}) state '{}'", 
+                        route.getScenarioName(), scriptContext.getSessionId(), scenarioState.getName());
                 }
             }
             
@@ -210,7 +211,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             // Process scenario transition after response
             if (route.getScenarioName() != null && !route.getScenarioName().isEmpty()) {
                 Map<String, Object> transitionContext = buildTransitionContext(scriptContext);
-                scenarioService.processTransition(route.getScenarioName(), transitionContext);
+                scenarioService.processTransition(route.getScenarioName(), transitionContext, scriptContext.getSessionId());
             }
             
             // Send response
@@ -285,9 +286,15 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             log.warn("Error reading request body", e);
         }
         
+        String sessionId = request.getHeader("X-Session-ID");
+        if (sessionId != null) {
+            sessionId = sessionId.trim();
+        }
         String envId = request.getHeader("X-Dynamic-Mock-Env");
         String stateKey = "dynamic-mock:script-state:global";
-        if (envId != null && !envId.isEmpty()) {
+        if (sessionId != null && !sessionId.isEmpty()) {
+            stateKey = "dynamic-mock:script-state:session:" + sessionId;
+        } else if (envId != null && !envId.isEmpty()) {
             stateKey = "dynamic-mock:script-state:env:" + envId;
         }
 
@@ -304,6 +311,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 match.getRoute().getResponseHeaders() : Map.of()))
             .variables(new HashMap<>())
             .state(new com.dynamicmock.adapter.out.script.RedisBackedStateMap(stateKey, redisTemplate))
+            .sessionId(sessionId)
             .build();
     }
     

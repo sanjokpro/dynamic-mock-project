@@ -35,6 +35,20 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Short-circuit: public authentication endpoints (/api/auth/**) do not require API key
+        String uri = request.getRequestURI();
+        if (uri != null && uri.startsWith("/api/auth/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Short-circuit: if Bearer token present, delegate to JwtAuthenticationFilter
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String providedKey = request.getHeader("X-API-KEY");
 
         if (providedKey == null || !MessageDigest.isEqual(providedKey.getBytes(StandardCharsets.UTF_8), expectedApiKey.getBytes(StandardCharsets.UTF_8))) {

@@ -11,7 +11,7 @@ We recommend creating the following specialized agent profiles in the `.agents/`
 
 ## 2. `frontend-gap-analyzer.md`
 - **Responsibility**: Validate the frontend completion policy and ensure frontend-backend contract consistency.
-- **Scope**: Angular UI, backend DTOs, REST controllers.
+- **Scope**: Next.js UI, backend DTOs, REST controllers.
 - **Inputs**: Frontend source code, API documentation, UI screens.
 - **Outputs**: Contract violation reports, missing state/validation reports.
 - **Success Criteria**: 100% of UI screens verify endpoints, mapping, validations, error handling, and loading states.

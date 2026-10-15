@@ -33,6 +33,7 @@ public class DemoDataLoader implements CommandLineRunner {
     private final ScenarioRepository scenarioRepository;
     private final com.dynamicmock.application.service.WorkspaceCollectionService collectionService;
     private final com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
+    private final com.dynamicmock.domain.port.out.UserRepository userRepository;
 
     @Override
     public void run(String... args) {
@@ -52,8 +53,12 @@ public class DemoDataLoader implements CommandLineRunner {
             log.info("Created demo environment 'DEV'");
         }
 
-        if (collectionService.getCollectionsByUserId("default-user").isEmpty()) {
-            com.dynamicmock.domain.entity.Collection col = collectionService.createCollection("Sample Collection", "default-user", "A collection to get you started");
+        String adminOwnerId = userRepository.findByUsername("admin")
+                .map(com.dynamicmock.domain.entity.User::getId)
+                .orElse("system");
+
+        if (collectionService.getCollectionsByUserId(adminOwnerId).isEmpty()) {
+            com.dynamicmock.domain.entity.Collection col = collectionService.createCollection("Sample Collection", adminOwnerId, "A collection to get you started");
             if (helloRoute != null) {
                 collectionService.addItemToCollection(col.getId(), com.dynamicmock.domain.entity.Collection.CollectionItem.builder()
                     .protocol("HTTP")
@@ -61,7 +66,7 @@ public class DemoDataLoader implements CommandLineRunner {
                     .name("Hello API")
                     .build());
             }
-            log.info("Created demo collection for 'default-user'");
+            log.info("Created demo collection for user '{}' (ID: {})", "admin", adminOwnerId);
         }
     }
 

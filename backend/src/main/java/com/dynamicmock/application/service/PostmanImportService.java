@@ -36,16 +36,46 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PostmanImportService {
 
-    private static final String IMPORT_USER_ID = "default-user";
     private static final String DEFAULT_RESPONSE_TEMPLATE = "{\"message\": \"Mocked from Postman collection\"}";
 
     private final RouteService routeService;
     private final WorkspaceCollectionService collectionService;
     private final WorkspaceEnvironmentService environmentService;
     private final ObjectMapper objectMapper;
+    private final com.dynamicmock.domain.port.out.UserRepository userRepository;
+
+    public PostmanImportService(RouteService routeService,
+                                WorkspaceCollectionService collectionService,
+                                WorkspaceEnvironmentService environmentService,
+                                ObjectMapper objectMapper) {
+        this(routeService, collectionService, environmentService, objectMapper, null);
+    }
+
+    public PostmanImportService(RouteService routeService,
+                                WorkspaceCollectionService collectionService,
+                                WorkspaceEnvironmentService environmentService,
+                                ObjectMapper objectMapper,
+                                com.dynamicmock.domain.port.out.UserRepository userRepository) {
+        this.routeService = routeService;
+        this.collectionService = collectionService;
+        this.environmentService = environmentService;
+        this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
+    }
+
+    private String resolveUserId(String explicitUserId) {
+        if (explicitUserId != null && !explicitUserId.trim().isEmpty()) {
+            return explicitUserId.trim();
+        }
+        if (userRepository != null) {
+            return userRepository.findByUsername("admin")
+                    .map(com.dynamicmock.domain.entity.User::getId)
+                    .orElse("system");
+        }
+        return "system";
+    }
 
     @Data
     public static class ImportReport {
@@ -68,15 +98,21 @@ public class PostmanImportService {
         }
     }
 
+    public ImportReport importPostmanCollection(byte[] collectionJson, List<byte[]> environmentJsons) {
+        return importPostmanCollection(collectionJson, environmentJsons, null);
+    }
+
     /**
      * Import a Postman collection and optional environment exports.
      *
      * @param collectionJson   raw bytes of the Postman collection v2.1 JSON
      * @param environmentJsons raw bytes of optional Postman environment JSON files
+     * @param explicitUserId   optional user ID to own imported collections
      * @return an {@link ImportReport} with counts, warnings and per-item errors
      */
-    public ImportReport importPostmanCollection(byte[] collectionJson, List<byte[]> environmentJsons) {
+    public ImportReport importPostmanCollection(byte[] collectionJson, List<byte[]> environmentJsons, String explicitUserId) {
         ImportReport report = new ImportReport();
+        String ownerId = resolveUserId(explicitUserId);
         try {
             PostmanCollection collection = objectMapper.readValue(collectionJson, PostmanCollection.class);
 
@@ -97,7 +133,7 @@ public class PostmanImportService {
             List<Item> bareRequests = new ArrayList<>();
             for (Item item : items) {
                 if (isFolder(item)) {
-                    importFolder(item, report);
+                    importFolder(item, ownerId, report);
                 } else if (item.getRequest() != null) {
                     bareRequests.add(item);
                 } else {
@@ -107,7 +143,7 @@ public class PostmanImportService {
 
             if (!bareRequests.isEmpty()) {
                 Collection target = collectionService.createCollection(
-                        collectionDisplayName, IMPORT_USER_ID, "Imported from Postman collection");
+                        collectionDisplayName, ownerId, "Imported from Postman collection");
                 report.setCollections(report.getCollections() + 1);
                 for (Item request : bareRequests) {
                     importRequest(request, target.getId(), "", report);
@@ -147,9 +183,9 @@ public class PostmanImportService {
         }
     }
 
-    private void importFolder(Item folder, ImportReport report) {
+    private void importFolder(Item folder, String ownerId, ImportReport report) {
         Collection created = collectionService.createCollection(
-                safeName(folder), IMPORT_USER_ID, "Imported from Postman folder");
+                safeName(folder), ownerId, "Imported from Postman folder");
         report.setCollections(report.getCollections() + 1);
 
         List<Item> children = folder.getItem() == null ? List.of() : folder.getItem();

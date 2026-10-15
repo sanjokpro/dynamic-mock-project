@@ -199,11 +199,29 @@ public class ScenarioService {
         return scenario;
     }
     
+    private String buildStateKey(String scenarioName, String namespace) {
+        if (namespace != null && !namespace.trim().isEmpty()) {
+            return SCENARIO_STATE_PREFIX + scenarioName + ":" + namespace.trim();
+        }
+        return SCENARIO_STATE_PREFIX + scenarioName;
+    }
+
+    private String buildExecKey(String scenarioName, String namespace) {
+        if (namespace != null && !namespace.trim().isEmpty()) {
+            return SCENARIO_EXEC_PREFIX + scenarioName + ":" + namespace.trim();
+        }
+        return SCENARIO_EXEC_PREFIX + scenarioName;
+    }
+
     /**
      * Get the current state for a scenario (from Redis for distributed consistency)
      */
     public String getCurrentState(String scenarioName) {
-        String key = SCENARIO_STATE_PREFIX + scenarioName;
+        return getCurrentState(scenarioName, null);
+    }
+
+    public String getCurrentState(String scenarioName, String namespace) {
+        String key = buildStateKey(scenarioName, namespace);
         Object state = redisTemplate.opsForValue().get(key);
         
         if (state != null) {
@@ -218,7 +236,7 @@ public class ScenarioService {
         
         if (scenario != null) {
             String initialState = scenario.getInitialState();
-            setCurrentState(scenarioName, initialState);
+            setCurrentState(scenarioName, initialState, namespace);
             return initialState;
         }
         
@@ -229,16 +247,24 @@ public class ScenarioService {
      * Set the current state for a scenario
      */
     public void setCurrentState(String scenarioName, String state) {
-        String key = SCENARIO_STATE_PREFIX + scenarioName;
+        setCurrentState(scenarioName, state, null);
+    }
+
+    public void setCurrentState(String scenarioName, String state, String namespace) {
+        String key = buildStateKey(scenarioName, namespace);
         redisTemplate.opsForValue().set(key, state, Duration.ofHours(24));
-        log.debug("Set scenario '{}' state to '{}'", scenarioName, state);
+        log.debug("Set scenario '{}' (ns: {}) state to '{}'", scenarioName, namespace, state);
     }
 
     /**
      * Get the execution count for a scenario from Redis.
      */
     public Long getExecutionCount(String scenarioName) {
-        String key = SCENARIO_EXEC_PREFIX + scenarioName;
+        return getExecutionCount(scenarioName, null);
+    }
+
+    public Long getExecutionCount(String scenarioName, String namespace) {
+        String key = buildExecKey(scenarioName, namespace);
         Object value = redisTemplate.opsForValue().get(key);
         if (value == null) return 0L;
         try {
@@ -249,13 +275,18 @@ public class ScenarioService {
     }
 
     /**
-     * Get the global script state variables stored in Redis for a scenario.
+     * Get the global or session script state variables stored in Redis for a scenario.
      * These are set by GraalVM scripts via the {@code state} context variable.
-     * Key pattern: dynamic-mock:script-state:global
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> getStateVariables(String scenarioName) {
-        String stateKey = "dynamic-mock:script-state:global";
+        return getStateVariables(scenarioName, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getStateVariables(String scenarioName, String namespace) {
+        String stateKey = (namespace != null && !namespace.trim().isEmpty())
+                ? "dynamic-mock:script-state:session:" + namespace.trim()
+                : "dynamic-mock:script-state:global";
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(stateKey);
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
@@ -268,7 +299,11 @@ public class ScenarioService {
      * Get the current state object (full state definition) for a scenario
      */
     public ScenarioState getCurrentStateObject(String scenarioName) {
-        String currentStateName = getCurrentState(scenarioName);
+        return getCurrentStateObject(scenarioName, null);
+    }
+
+    public ScenarioState getCurrentStateObject(String scenarioName, String namespace) {
+        String currentStateName = getCurrentState(scenarioName, namespace);
         if (currentStateName == null) {
             return null;
         }
@@ -292,7 +327,11 @@ public class ScenarioService {
      * Process a state transition based on the current context
      */
     public String processTransition(String scenarioName, Map<String, Object> context) {
-        String currentStateName = getCurrentState(scenarioName);
+        return processTransition(scenarioName, context, null);
+    }
+
+    public String processTransition(String scenarioName, Map<String, Object> context, String namespace) {
+        String currentStateName = getCurrentState(scenarioName, namespace);
         if (currentStateName == null) {
             return null;
         }
@@ -323,14 +362,14 @@ public class ScenarioService {
         for (StateTransition transition : transitions) {
             if (evaluateCondition(transition.getCondition(), context)) {
                 String nextState = transition.getTargetState();
-                setCurrentState(scenarioName, nextState);
-                incrementExecutionCount(scenarioName);
+                setCurrentState(scenarioName, nextState, namespace);
+                incrementExecutionCount(scenarioName, namespace);
                 
-                log.info("Scenario '{}' transitioned: {} -> {} (condition: {})", 
-                    scenarioName, currentStateName, nextState, transition.getCondition());
+                log.info("Scenario '{}' (ns: {}) transitioned: {} -> {} (condition: {})", 
+                    scenarioName, namespace, currentStateName, nextState, transition.getCondition());
                 
                 // Check for auto-reset
-                checkAutoReset(scenario, nextState);
+                checkAutoReset(scenario, nextState, namespace);
                 
                 return nextState;
             }
@@ -342,15 +381,15 @@ public class ScenarioService {
     /**
      * Increment execution count for a scenario
      */
-    private void incrementExecutionCount(String scenarioName) {
-        String key = SCENARIO_EXEC_PREFIX + scenarioName;
+    private void incrementExecutionCount(String scenarioName, String namespace) {
+        String key = buildExecKey(scenarioName, namespace);
         redisTemplate.opsForValue().increment(key);
     }
     
     /**
      * Check if scenario should auto-reset
      */
-    private void checkAutoReset(Scenario scenario, String currentState) {
+    private void checkAutoReset(Scenario scenario, String currentState, String namespace) {
         if (!Boolean.TRUE.equals(scenario.getAutoReset())) {
             return;
         }
@@ -364,8 +403,9 @@ public class ScenarioService {
             
             if (state != null && (state.getTransitions() == null || state.getTransitions().isEmpty())) {
                 // Terminal state reached, reset to initial
-                log.info("Scenario '{}' reached terminal state '{}', auto-resetting", scenario.getName(), currentState);
-                setCurrentState(scenario.getName(), scenario.getInitialState());
+                log.info("Scenario '{}' (ns: {}) reached terminal state '{}', auto-resetting",
+                    scenario.getName(), namespace, currentState);
+                setCurrentState(scenario.getName(), scenario.getInitialState(), namespace);
             }
         }
     }
@@ -459,11 +499,15 @@ public class ScenarioService {
     }
     
     /**
-     * Clear all state data for a scenario
+     * Clear all state data for a scenario (global or namespaced)
      */
     private void clearScenarioState(String scenarioName) {
-        redisTemplate.delete(SCENARIO_STATE_PREFIX + scenarioName);
-        redisTemplate.delete(SCENARIO_EXEC_PREFIX + scenarioName);
+        clearScenarioState(scenarioName, null);
+    }
+
+    public void clearScenarioState(String scenarioName, String namespace) {
+        redisTemplate.delete(buildStateKey(scenarioName, namespace));
+        redisTemplate.delete(buildExecKey(scenarioName, namespace));
     }
     
     /**

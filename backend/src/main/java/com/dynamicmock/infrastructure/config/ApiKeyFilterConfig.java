@@ -17,7 +17,7 @@ public class ApiKeyFilterConfig {
         FilterRegistrationBean<ApiKeyAuthFilter> registrationBean = new FilterRegistrationBean<>();
         registrationBean.setFilter(new ApiKeyAuthFilter(apiKey));
         registrationBean.addUrlPatterns("/api", "/api/*");
-        registrationBean.setOrder(1); // Run early in the chain
+        registrationBean.setOrder(100); // Demoted so Spring Security runs first
         return registrationBean;
     }
 }

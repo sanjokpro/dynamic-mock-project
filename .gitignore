@@ -18,7 +18,7 @@ backend/.gradle/
 backend/gradle-*/
 backend/*.zip
 
-# Node/Angular
+# Node/Next.js
 **/node_modules/
 **/dist/
 .npm/
