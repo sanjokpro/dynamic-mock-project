@@ -53,6 +53,7 @@ public class PostmanImportService {
         this(routeService, collectionService, environmentService, objectMapper, null);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PostmanImportService(RouteService routeService,
                                 WorkspaceCollectionService collectionService,
                                 WorkspaceEnvironmentService environmentService,
