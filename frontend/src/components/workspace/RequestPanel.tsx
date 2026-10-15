@@ -81,7 +81,7 @@ export function RequestPanel() {
       responseHeaders: Object.keys(responseHeaders).length > 0 ? responseHeaders : undefined,
       matchers: (matchers.headers && Object.keys(matchers.headers).length > 0) ||
                 (matchers.queryParams && Object.keys(matchers.queryParams).length > 0) ||
-                (matchers.bodyMatchType && matchers.bodyMatchType !== 'none') ? matchers : undefined,
+                (matchers.bodyMatchType && matchers.bodyMatchType !== 'none') ? matchers : {},
       preScript,
       postScript,
       scriptLanguage: 'js'
