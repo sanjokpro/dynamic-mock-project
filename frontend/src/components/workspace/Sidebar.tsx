@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Folder, FolderOpen, Plus, Search, Settings, Loader2, Inbox, Globe, ChevronRight, ChevronDown, Sun, Moon, GitBranch, Server, Edit2, Copy, Trash2, X } from 'lucide-react';
 import { useCollections } from '@/hooks/useCollections';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -42,6 +42,23 @@ export function Sidebar() {
       return next;
     });
   };
+
+  // Restore active route from localStorage on reload
+  useEffect(() => {
+    if (!activeRoute && routes && routes.length > 0) {
+      try {
+        const savedId = localStorage.getItem('dynamicmock:active_route_id');
+        if (savedId) {
+          const found = routes.find(r => r.id === savedId);
+          if (found) {
+            setActiveRoute(found);
+          }
+        }
+      } catch {
+        // localStorage not available
+      }
+    }
+  }, [routes, activeRoute, setActiveRoute]);
 
   const filteredRoutes = useMemo(() => {
     if (!searchQuery.trim()) return routes;

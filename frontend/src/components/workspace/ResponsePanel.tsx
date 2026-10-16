@@ -63,9 +63,27 @@ export function ResponsePanel() {
   }
 
   const isError = lastResponse.status >= 400;
-  const bodyText = typeof lastResponse.body === 'string'
-    ? lastResponse.body
-    : JSON.stringify(lastResponse.body, null, 2);
+  const rawBody = lastResponse.body;
+  let formattedBody = '';
+  if (typeof rawBody === 'string') {
+    const trimmed = rawBody.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        formattedBody = JSON.stringify(JSON.parse(trimmed), null, 2);
+      } catch {
+        formattedBody = rawBody;
+      }
+    } else {
+      formattedBody = rawBody;
+    }
+  } else if (rawBody !== undefined && rawBody !== null) {
+    try {
+      formattedBody = JSON.stringify(rawBody, null, 2);
+    } catch {
+      formattedBody = String(rawBody);
+    }
+  }
+  const bodyText = formattedBody;
 
   return (
     <div className="flex flex-col h-full bg-panel-bg">
@@ -193,7 +211,7 @@ function JsonHighlighter({ json, theme }: { json: string; theme: 'light' | 'dark
   );
 }
 
-function highlightJson(json: string, theme: 'light' | 'dark'): string {
+export function highlightJson(json: string, theme: 'light' | 'dark'): string {
   // Colors for dark theme
   const colors = theme === 'dark'
     ? {
@@ -224,7 +242,7 @@ function highlightJson(json: string, theme: 'light' | 'dark'): string {
 
   // Tokenize and highlight
   const tokens: string[] = [];
-  const regex = /("(?:\\.|[^"\\])*")\s*(:)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\]])|([,:])|([^\s{}[\]",:]+)/g;
+  const regex = /("(?:\\.|[^"\\])*")(?:\s*(:))?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\]])|([,:])/g;
   let lastIndex = 0;
 
   let match: RegExpExecArray | null;
@@ -237,7 +255,7 @@ function highlightJson(json: string, theme: 'light' | 'dark'): string {
 
     if (match[1]) {
       // String (key or value)
-      const isKey = match[2] === ':';
+      const isKey = !!match[2];
       tokens.push(`<span style="color:${isKey ? colors.key : colors.string}">${escapeHtml(match[1])}</span>`);
       if (match[2]) {
         tokens.push(`<span style="color:${colors.punctuation}">:</span>`);

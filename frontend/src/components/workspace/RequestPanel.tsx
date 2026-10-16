@@ -39,24 +39,85 @@ export function RequestPanel() {
   }>({});
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const isLoadedRef = useRef<boolean>(false);
+  const currentRouteIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (activeRoute) {
-      setMethod(activeRoute.method || 'GET');
-      const activePath = activeRoute.path || '';
-      setPath(activePath);
-      setUrl(`{{BASE_URL}}${activePath.startsWith('/') ? activePath : '/' + activePath}`);
-      setResponseStatus(activeRoute.responseStatus || 200);
-      setResponseTemplate(activeRoute.responseTemplate || '');
-      setPreScript(activeRoute.preScript || '');
-      setPostScript(activeRoute.postScript || '');
+    if (!activeRoute) {
+      isLoadedRef.current = false;
+      currentRouteIdRef.current = null;
+      return;
+    }
+
+    isLoadedRef.current = false;
+    currentRouteIdRef.current = activeRoute.id;
+
+    setMethod(activeRoute.method || 'GET');
+    const activePath = activeRoute.path || '';
+    setPath(activePath);
+    setUrl(`{{BASE_URL}}${activePath.startsWith('/') ? activePath : '/' + activePath}`);
+    setResponseStatus(activeRoute.responseStatus || 200);
+    setResponseTemplate(activeRoute.responseTemplate || '');
+    setPreScript(activeRoute.preScript || '');
+    setPostScript(activeRoute.postScript || '');
+    setResponseHeaders(activeRoute.responseHeaders || {});
+    setMatchers(activeRoute.matchers || {});
+
+    // Restore draft from localStorage if present
+    let restoredDraft = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`dynamicmock:test_draft:${activeRoute.id}`);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft && typeof draft === 'object') {
+            setRequestHeaders(draft.requestHeaders || {});
+            setQueryParams(draft.queryParams !== undefined ? draft.queryParams : (activeRoute.queryParams || {}));
+            setRequestBodyType(draft.requestBodyType || 'none');
+            setRequestBodyContent(draft.requestBodyContent || '');
+            restoredDraft = true;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load test request draft from localStorage', e);
+      }
+    }
+
+    if (!restoredDraft) {
       setQueryParams(activeRoute.queryParams || {});
-      setResponseHeaders(activeRoute.responseHeaders || {});
       setRequestHeaders({});
-      setMatchers(activeRoute.matchers || {});
       setRequestBodyType('none');
       setRequestBodyContent('');
     }
-  }, [activeRoute]);
+
+    // Mark as loaded so subsequent user edits persist
+    const timer = setTimeout(() => {
+      isLoadedRef.current = true;
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [activeRoute?.id]);
+
+  // Persist test request draft on user changes
+  useEffect(() => {
+    if (!isLoadedRef.current || !activeRoute?.id) return;
+    if (currentRouteIdRef.current !== activeRoute.id) return;
+
+    if (typeof window !== 'undefined') {
+      try {
+        const draft = {
+          requestHeaders,
+          queryParams,
+          requestBodyType,
+          requestBodyContent,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(`dynamicmock:test_draft:${activeRoute.id}`, JSON.stringify(draft));
+      } catch (e) {
+        console.warn('Failed to persist test request draft to localStorage', e);
+      }
+    }
+  }, [requestHeaders, queryParams, requestBodyType, requestBodyContent, activeRoute?.id]);
 
   const handleSave = async () => {
     if (!activeRoute) return;
@@ -98,6 +159,15 @@ export function RequestPanel() {
   };
 
   const handleSend = () => {
+    let targetUrl = url;
+    const queryEntries = Object.entries(queryParams).filter(([k]) => k.trim());
+    if (queryEntries.length > 0) {
+      const [baseUrlPart, existingQuery] = targetUrl.split('?');
+      const searchParams = new URLSearchParams(existingQuery || '');
+      queryEntries.forEach(([k, v]) => searchParams.set(k, v));
+      targetUrl = `${baseUrlPart}?${searchParams.toString()}`;
+    }
+
     const headers: Record<string, string> = { ...requestHeaders };
     if (activeEnvironment) {
       headers['X-Dynamic-Mock-Env'] = activeEnvironment.id;
@@ -112,7 +182,7 @@ export function RequestPanel() {
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
-    execute({ url, method, headers, body }, {
+    execute({ url: targetUrl, method, headers, body }, {
       onSuccess: (data) => {
         setLastResponse(data);
       }

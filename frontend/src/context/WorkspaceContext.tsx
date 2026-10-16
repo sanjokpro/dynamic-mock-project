@@ -25,7 +25,22 @@ interface WorkspaceContextType {
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const [activeRoute, setActiveRoute] = useState<MockRoute | null>(null);
+  const [activeRoute, setActiveRouteInternal] = useState<MockRoute | null>(null);
+
+  const setActiveRoute = (route: MockRoute | null) => {
+    setActiveRouteInternal(route);
+    if (typeof window !== 'undefined') {
+      try {
+        if (route?.id) {
+          localStorage.setItem('dynamicmock:active_route_id', route.id);
+        } else {
+          localStorage.removeItem('dynamicmock:active_route_id');
+        }
+      } catch {
+        // localStorage not available
+      }
+    }
+  };
   const [activeEnvironment, setActiveEnvironment] = useState<Environment | null>(null);
   const [activeView, setActiveView] = useState<'routes' | 'scenarios'>('routes');
   const [lastResponse, setLastResponse] = useState<TestResponse | null>(null);
