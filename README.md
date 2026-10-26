@@ -42,9 +42,16 @@ Replace your test switches and legacy stubs with a single platform that speaks I
 - **ISO8583**: Native TCP server with jPOS packager support
 
 ### ⚙️ Developer Experience
+- **Frictionless Headers Management**: Table & Raw/Bulk multiline text editor with checkbox toggles and HTTP header auto-complete
+- **One-Click "Copy as cURL"**: Export fully formatted, escaped terminal commands directly from Test Client and Response viewer
+- **Segmented Workbench**: Clean segregation of Test Client execution runner from Mock Stub server definition
+- **Contextual Help Popovers**: Accessible (ⓘ) guides for header regex, query matchers, body validation, and GraalVM scripts
+- **Interactive Banking Sandbox**: Dedicated Header and Sidebar launchers with visual ISO8583 transaction lifecycle flows
+- **Response Explorer**: Real-time HTTP status reason phrases (`200 OK`, `404 Not Found`), payload byte metrics, and substring search highlighting
+- **Power User Hotkeys**: Instant request execution (`Cmd+Enter`), route saving (`Cmd+S`), and cheatsheet modal (`?`)
 - Dynamic route creation without server restart
-- Handlebars response templating with built-in random data functions (`{{$randomInt}}`, `{{$randomString}}`, etc.)
-- Postman Collection import
+- Handlebars response templating with built-in helpers (`{{random.uuid}}`, `{{now}}`)
+- Postman Collection (v2.1) & OpenAPI (v3.0) import
 - Live traffic console (WebSocket)
 - Environment variables with full CRUD UI
 - Route versioning with rollback and diff

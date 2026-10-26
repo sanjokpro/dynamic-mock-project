@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Globe, ChevronDown, Sun, Moon, Play, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings, LogOut } from 'lucide-react';
+import { Globe, ChevronDown, Sun, Moon, Play, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings, LogOut, Landmark, HelpCircle } from 'lucide-react';
 import { useEnvironments } from '@/hooks/useEnvironments';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { MockRoute } from '@/types';
 import { ImportModal } from './ImportModal';
 import { EnvironmentManagerModal } from './environments/EnvironmentManagerModal';
+import { BankingSandboxModal } from './BankingSandboxModal';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { useDialogs } from '@/context/DialogContext';
 import { toast } from 'sonner';
 
@@ -39,6 +41,8 @@ export function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [envManagerOpen, setEnvManagerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [bankingSandboxOpen, setBankingSandboxOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -70,13 +74,19 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Keyboard shortcut: Cmd+K or Ctrl+K to focus search
+  // Keyboard shortcut: Cmd+K or Ctrl+K to focus search, ? to open shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         searchInputRef.current?.focus();
         setShowSuggestions(true);
+      } else if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea' && !(document.activeElement as HTMLElement)?.isContentEditable) {
+          e.preventDefault();
+          setShortcutsOpen(prev => !prev);
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -242,10 +252,16 @@ export function Header() {
         </div>
 
         {/* Quick Actions (desktop) */}
-        <div className="hidden md:flex items-center gap-1 ml-1">
-          <button className="flex items-center gap-1 px-2 h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors">
-            <Play className="h-3 w-3" />
-            <span>Runner</span>
+        <div className="hidden sm:flex items-center gap-1.5 ml-1">
+          <button
+            type="button"
+            onClick={() => setBankingSandboxOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 h-7 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all shadow-xs cursor-pointer border border-primary/20"
+            title="Open Reference Banking Sandbox (ISO8583 Simulation)"
+          >
+            <Landmark className="h-3.5 w-3.5" />
+            <span>Banking Sandbox</span>
+            <span className="hidden lg:inline text-[9px] font-bold bg-primary text-primary-foreground px-1 py-0.2 rounded">Moat</span>
           </button>
           <button
             onClick={() => setImportOpen(true)}
@@ -385,6 +401,17 @@ export function Header() {
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full ring-1 ring-background" />
         </button>
 
+        {/* Keyboard Shortcuts Cheatsheet */}
+        <button
+          type="button"
+          onClick={() => setShortcutsOpen(true)}
+          className="p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+          title="Keyboard shortcuts (?)"
+          aria-label="Keyboard shortcuts"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+
         {/* User menu */}
         <div className="relative" ref={userMenuRef}>
           <button
@@ -421,6 +448,8 @@ export function Header() {
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
       <EnvironmentManagerModal open={envManagerOpen} onClose={() => setEnvManagerOpen(false)} />
+      <BankingSandboxModal open={bankingSandboxOpen} onClose={() => setBankingSandboxOpen(false)} />
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </header>
   );
 }

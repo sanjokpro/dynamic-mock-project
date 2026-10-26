@@ -1,43 +1,96 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { Clock, Database, Ghost, Copy, Download, Check } from 'lucide-react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Clock, Database, Ghost, Copy, Download, Check, Search, X, Terminal } from 'lucide-react';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
+import { formatHttpStatus, formatPayloadSize } from '@/lib/httpStatus';
+import { generateCurlCommand, copyToClipboard } from '@/lib/curl';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 type ResponseTab = 'body' | 'headers';
 
 export function ResponsePanel() {
-  const { lastResponse } = useWorkspace();
+  const { lastResponse, activeRoute, activeEnvironment } = useWorkspace();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<ResponseTab>('body');
   const [copied, setCopied] = useState(false);
+  const [copiedCurl, setCopiedCurl] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleCopy = useCallback(() => {
     if (!lastResponse) return;
     const text = typeof lastResponse.body === 'string' 
       ? lastResponse.body 
       : JSON.stringify(lastResponse.body, null, 2);
-    try {
-      navigator.clipboard.writeText(text).then(() => {
+    
+    copyToClipboard(text).then((success) => {
+      if (success) {
         setCopied(true);
+        toast.success('Response copied to clipboard');
         setTimeout(() => setCopied(false), 2000);
-      }).catch(() => {
-        // Fallback for non-HTTPS contexts
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
-    } catch {
-      // Clipboard unavailable
-    }
+      }
+    });
   }, [lastResponse]);
+
+  const handleCopyCurl = useCallback(async () => {
+    if (!lastResponse) return;
+    const method = activeRoute?.method || 'GET';
+    const path = activeRoute?.path || '/api';
+    let headers: Record<string, string> = {};
+    let body: string | undefined;
+
+    if (typeof window !== 'undefined' && activeRoute?.id) {
+      try {
+        const saved = localStorage.getItem(`dynamicmock:test_draft:${activeRoute.id}`);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft) {
+            for (const [k, v] of Object.entries(draft.requestHeaders || {})) {
+              if (k.toLowerCase() !== 'content-type') {
+                headers[k] = v as string;
+              }
+            }
+            if (draft.requestBodyType !== 'none') {
+              body = draft.requestBodyContent;
+            }
+            if (draft.requestBodyType === 'json') {
+              headers['Content-Type'] = 'application/json';
+            } else if (draft.requestBodyType === 'form') {
+              headers['Content-Type'] = 'application/x-www-form-urlencoded';
+            } else if (draft.requestBodyType === 'raw') {
+              const existingCt = Object.entries(draft.requestHeaders || {}).find(([k]) => k.toLowerCase() === 'content-type');
+              headers['Content-Type'] = existingCt ? (existingCt[1] as string) : 'text/plain';
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed reading draft for cURL export', e);
+      }
+    }
+
+    // Note: X-Dynamic-Mock-Env excluded from cURL - it's an internal routing header
+
+    const targetUrl = `{{BASE_URL}}${path.startsWith('/') ? path : '/' + path}`;
+    const curl = generateCurlCommand({
+      method,
+      url: targetUrl,
+      headers,
+      body,
+      variables: activeEnvironment?.variables,
+      baseOrigin: typeof window !== 'undefined' ? `${window.location.origin}/mock` : undefined
+    });
+
+    const success = await copyToClipboard(curl);
+    if (success) {
+      setCopiedCurl(true);
+      toast.success('cURL command copied to clipboard');
+      setTimeout(() => setCopiedCurl(false), 2000);
+    } else {
+      toast.error('Failed to copy cURL command');
+    }
+  }, [lastResponse, activeRoute, activeEnvironment]);
 
   const handleDownload = useCallback(() => {
     if (!lastResponse) return;
@@ -51,19 +104,10 @@ export function ResponsePanel() {
     a.download = 'response.json';
     a.click();
     URL.revokeObjectURL(url);
+    toast.success('Downloaded response.json');
   }, [lastResponse]);
 
-  if (!lastResponse) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 bg-panel-bg">
-        <Ghost className="h-14 w-14 opacity-[0.08]" strokeWidth={1} />
-        <p className="text-sm">Send a request to see the response</p>
-      </div>
-    );
-  }
-
-  const isError = lastResponse.status >= 400;
-  const rawBody = lastResponse.body;
+  const rawBody = lastResponse?.body;
   let formattedBody = '';
   if (typeof rawBody === 'string') {
     const trimmed = rawBody.trim();
@@ -85,20 +129,42 @@ export function ResponsePanel() {
   }
   const bodyText = formattedBody;
 
+  const matchCount = useMemo(() => {
+    if (!searchQuery.trim() || !bodyText) return 0;
+    try {
+      const escaped = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const matches = bodyText.match(new RegExp(escaped, 'gi'));
+      return matches ? matches.length : 0;
+    } catch {
+      return 0;
+    }
+  }, [searchQuery, bodyText]);
+
+  if (!lastResponse) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 bg-panel-bg">
+        <Ghost className="h-14 w-14 opacity-[0.08]" strokeWidth={1} />
+        <p className="text-sm">Send a request to see the response</p>
+      </div>
+    );
+  }
+
+  const isError = lastResponse.status >= 400;
+
   return (
     <div className="flex flex-col h-full bg-panel-bg">
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b bg-panel-header-bg">
         <div className="flex items-center gap-3 text-xs">
-          {/* Status badge */}
+          {/* Status badge with Reason Phrase */}
           <span className={cn(
-            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-semibold text-[11px]",
+            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md font-semibold text-[11px]",
             isError 
-              ? "bg-red-500/10 text-red-500" 
-              : "bg-green-500/10 text-green-500"
+              ? "bg-red-500/10 text-red-500 border border-red-500/20" 
+              : "bg-green-500/10 text-green-500 border border-green-500/20"
           )}>
             <span className={cn("w-1.5 h-1.5 rounded-full", isError ? "bg-red-500" : "bg-green-500")} />
-            {lastResponse.status} {lastResponse.statusText}
+            {formatHttpStatus(lastResponse.status, lastResponse.statusText)}
           </span>
 
           {/* Duration */}
@@ -111,7 +177,7 @@ export function ResponsePanel() {
           {bodyText && (
             <span className="flex items-center gap-1 text-muted-foreground">
               <Database className="h-3 w-3" />
-              <span className="tabular-nums">{(new Blob([bodyText]).size / 1024).toFixed(1)} KB</span>
+              <span className="tabular-nums">{formatPayloadSize(new Blob([bodyText]).size)}</span>
             </span>
           )}
         </div>
@@ -119,60 +185,109 @@ export function ResponsePanel() {
         {/* Actions */}
         <div className="flex items-center gap-1">
           <button
+            type="button"
+            onClick={handleCopyCurl}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors cursor-pointer",
+              copiedCurl
+                ? "bg-green-500/10 text-green-500"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            )}
+            title="Copy as cURL"
+          >
+            {copiedCurl ? <Check className="h-3 w-3" /> : <Terminal className="h-3 w-3" />}
+            <span className="hidden sm:inline">{copiedCurl ? 'Copied' : 'cURL'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleCopy}
             className={cn(
-              "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
+              "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors cursor-pointer",
               copied 
                 ? "bg-green-500/10 text-green-500" 
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
-            title="Copy response"
+            title="Copy response body"
           >
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copied ? 'Copied' : 'Copy'}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
+
           <button
+            type="button"
             onClick={handleDownload}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             title="Download response"
           >
             <Download className="h-3 w-3" />
-            Download
+            <span className="hidden sm:inline">Download</span>
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b text-xs">
-        <button
-          onClick={() => setActiveTab('body')}
-          className={cn(
-            "px-4 py-1.5 transition-colors",
-            activeTab === 'body' 
-              ? "border-b-2 border-primary font-medium text-foreground" 
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Body
-        </button>
-        <button
-          onClick={() => setActiveTab('headers')}
-          className={cn(
-            "px-4 py-1.5 transition-colors",
-            activeTab === 'headers' 
-              ? "border-b-2 border-primary font-medium text-foreground" 
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Headers ({Object.keys(lastResponse.headers || {}).length})
-        </button>
+      {/* Tabs & Search Toolbar */}
+      <div className="flex items-center justify-between border-b text-xs px-2 bg-muted/10 shrink-0">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab('body')}
+            className={cn(
+              "px-3 py-1.5 transition-colors cursor-pointer font-medium border-b-2",
+              activeTab === 'body' 
+                ? "border-primary text-foreground" 
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Body
+          </button>
+          <button
+            onClick={() => setActiveTab('headers')}
+            className={cn(
+              "px-3 py-1.5 transition-colors cursor-pointer font-medium border-b-2",
+              activeTab === 'headers' 
+                ? "border-primary text-foreground" 
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Headers ({Object.keys(lastResponse.headers || {}).length})
+          </button>
+        </div>
+
+        {/* Payload Search Bar */}
+        {activeTab === 'body' && (
+          <div className="flex items-center gap-2 py-1">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="h-6 w-36 sm:w-48 pl-6 pr-6 text-[11px] bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <span className="text-[10px] text-muted-foreground font-mono shrink-0">
+                {matchCount} {matchCount === 1 ? 'match' : 'matches'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'body' ? (
           <div className="h-full overflow-auto p-3 custom-scrollbar">
-            <JsonHighlighter json={bodyText} theme={theme} />
+            <JsonHighlighter json={bodyText} theme={theme} searchQuery={searchQuery} />
           </div>
         ) : (
           <div className="h-full overflow-auto p-3 custom-scrollbar">
@@ -195,11 +310,31 @@ export function ResponsePanel() {
 }
 
 /**
+ * Highlighting helper applying search query mark highlight to safe token content
+ */
+function applySearchHighlight(escapedText: string, searchQuery?: string): string {
+  if (!searchQuery || !searchQuery.trim()) return escapedText;
+  try {
+    const rawQuery = searchQuery.trim();
+    // Escape HTML of the query so it matches escaped characters in text
+    const escapedQuery = rawQuery
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const pattern = new RegExp(`(${escapedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escapedText.replace(pattern, '<mark class="bg-amber-400/40 text-amber-200 rounded-xs px-0.5 font-bold">$1</mark>');
+  } catch {
+    return escapedText;
+  }
+}
+
+/**
  * Simple JSON syntax highlighter that renders color-coded tokens.
  * Uses dangerouslySetInnerHTML for the highlighting markup.
  */
-function JsonHighlighter({ json, theme }: { json: string; theme: 'light' | 'dark' }) {
-  const highlighted = highlightJson(json, theme);
+function JsonHighlighter({ json, theme, searchQuery }: { json: string; theme: 'light' | 'dark'; searchQuery?: string }) {
+  const highlighted = highlightJson(json, theme, searchQuery);
 
   return (
     <pre className={cn(
@@ -211,7 +346,7 @@ function JsonHighlighter({ json, theme }: { json: string; theme: 'light' | 'dark
   );
 }
 
-export function highlightJson(json: string, theme: 'light' | 'dark'): string {
+export function highlightJson(json: string, theme: 'light' | 'dark', searchQuery?: string): string {
   // Colors for dark theme
   const colors = theme === 'dark'
     ? {
@@ -256,19 +391,23 @@ export function highlightJson(json: string, theme: 'light' | 'dark'): string {
     if (match[1]) {
       // String (key or value)
       const isKey = !!match[2];
-      tokens.push(`<span style="color:${isKey ? colors.key : colors.string}">${escapeHtml(match[1])}</span>`);
+      const highlightedText = applySearchHighlight(escapeHtml(match[1]), searchQuery);
+      tokens.push(`<span style="color:${isKey ? colors.key : colors.string}">${highlightedText}</span>`);
       if (match[2]) {
         tokens.push(`<span style="color:${colors.punctuation}">:</span>`);
       }
     } else if (match[3]) {
       // Number
-      tokens.push(`<span style="color:${colors.number}">${escapeHtml(match[3])}</span>`);
+      const highlightedNum = applySearchHighlight(escapeHtml(match[3]), searchQuery);
+      tokens.push(`<span style="color:${colors.number}">${highlightedNum}</span>`);
     } else if (match[4]) {
       // Boolean
-      tokens.push(`<span style="color:${colors.boolean}">${escapeHtml(match[4])}</span>`);
+      const highlightedBool = applySearchHighlight(escapeHtml(match[4]), searchQuery);
+      tokens.push(`<span style="color:${colors.boolean}">${highlightedBool}</span>`);
     } else if (match[5]) {
       // Null
-      tokens.push(`<span style="color:${colors.null}">${escapeHtml(match[5])}</span>`);
+      const highlightedNull = applySearchHighlight(escapeHtml(match[5]), searchQuery);
+      tokens.push(`<span style="color:${colors.null}">${highlightedNull}</span>`);
     } else if (match[6]) {
       // Brackets
       tokens.push(`<span style="color:${colors.bracket}">${escapeHtml(match[6])}</span>`);

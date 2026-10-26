@@ -37,4 +37,19 @@ describe('ResponsePanel - highlightJson', () => {
     expect(highlighted).toContain('key');
     expect(highlighted).toContain('&quot;&quot;');
   });
+
+  it('applies search query highlighting with mark tags without altering JSON tokens', () => {
+    const input = '{"name":"Alice","role":"admin"}';
+    const highlighted = highlightJson(input, 'dark', 'alice');
+
+    expect(highlighted).toContain('<mark class="bg-amber-400/40 text-amber-200 rounded-xs px-0.5 font-bold">Alice</mark>');
+    expect(highlighted).toContain('role');
+  });
+
+  it('handles search queries that match property keys', () => {
+    const input = '{"status":"active"}';
+    const highlighted = highlightJson(input, 'dark', 'status');
+
+    expect(highlighted).toContain('<mark class="bg-amber-400/40 text-amber-200 rounded-xs px-0.5 font-bold">status</mark>');
+  });
 });

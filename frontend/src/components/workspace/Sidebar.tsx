@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Folder, FolderOpen, Plus, Search, Settings, Loader2, Inbox, Globe, ChevronRight, ChevronDown, Sun, Moon, GitBranch, Server, Edit2, Copy, Trash2, X } from 'lucide-react';
+import { Folder, FolderOpen, Plus, Search, Settings, Loader2, Inbox, Globe, ChevronRight, ChevronDown, Sun, Moon, GitBranch, Server, Edit2, Copy, Trash2, X, Landmark } from 'lucide-react';
 import { useCollections } from '@/hooks/useCollections';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useDialogs } from '@/context/DialogContext';
 import { useAuth } from '@/hooks/useAuth';
+import { BankingSandboxModal } from './BankingSandboxModal';
 import { toast } from 'sonner';
 import { MockRoute } from '@/types';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
   const [moveRouteMode, setMoveRouteMode] = useState<{ sourceCollection: any, item: any } | null>(null);
+  const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
 
   const toggleCollection = (id: string) => {
     setExpandedCollections(prev => {
@@ -239,6 +241,29 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+        {/* Pinned Reference Banking Sandbox Entry */}
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => setSandboxModalOpen(true)}
+            className="flex items-center gap-2 w-full p-2 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer group text-left"
+            title="Open Reference Banking Sandbox (ISO8583 Simulation)"
+          >
+            <div className="p-1 rounded bg-primary/20 text-primary group-hover:scale-105 transition-transform">
+              <Landmark className="h-3.5 w-3.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="block truncate font-semibold">Banking Sandbox</span>
+              <span className="block text-[10px] text-muted-foreground font-normal truncate">
+                ISO8583 • 0100 / 0200 / 0400
+              </span>
+            </div>
+            <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+              Moat
+            </span>
+          </button>
+        </div>
+
         {/* Collections Section */}
         <div className="flex items-center justify-between px-2 py-1.5">
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Collections</span>
@@ -464,6 +489,8 @@ export function Sidebar() {
           </div>
         </div>
       )}
+
+      <BankingSandboxModal open={sandboxModalOpen} onClose={() => setSandboxModalOpen(false)} />
     </div>
   );
 }
