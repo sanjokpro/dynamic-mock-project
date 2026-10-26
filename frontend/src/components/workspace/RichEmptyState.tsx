@@ -34,7 +34,7 @@ export function RichEmptyState({
 
         {/* 2x2 Action Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          {/* Card 1: Reference Banking Sandbox (Flagship Moat) */}
+          {/* Card 1: Banking Demo Sandbox (Optional Evaluation) */}
           <div className="relative group p-5 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card hover:border-primary transition-all shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -42,14 +42,14 @@ export function RichEmptyState({
                   <Landmark className="h-5 w-5" />
                 </div>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-                  Moat Demo
+                  Optional Demo
                 </span>
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1">
-                Reference Banking Sandbox
+                Banking Demo Sandbox
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                5-minute financial quickstart demonstrating ISO8583 Authorization (0100), Capture (0200), Reversal (0400), and state machine transitions.
+                Optional 5-minute financial evaluation demo demonstrating ISO8583 Authorization (0100), Capture (0200), Reversal (0400), and state machine transitions.
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-border/50">
@@ -58,7 +58,7 @@ export function RichEmptyState({
                 onClick={onOpenSandboxModal}
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
               >
-                <span>Launch Banking Sandbox</span>
+                <span>Launch Banking Demo Sandbox</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>

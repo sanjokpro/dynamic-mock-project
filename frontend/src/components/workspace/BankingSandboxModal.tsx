@@ -1,7 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Landmark, CheckCircle2, ArrowRight, X, Loader2, RefreshCw, ShieldCheck, Database, Layers } from 'lucide-react';
+import { 
+  Landmark, 
+  CheckCircle2, 
+  ArrowLeft, 
+  X, 
+  Loader2, 
+  RefreshCw, 
+  HelpCircle, 
+  Users, 
+  Code2, 
+  Layers, 
+  Sparkles 
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface BankingSandboxModalProps {
@@ -36,7 +48,7 @@ export function BankingSandboxModal({
     try {
       const res = await fetch('/api/sandbox/load', { method: 'POST' });
       if (res.ok) {
-        toast.success('Reference Banking Sandbox loaded successfully');
+        toast.success('Banking Demo Sandbox loaded successfully');
         onLoadSuccess?.();
         onClose();
         // Reload to refresh routes and scenario stubs in sidebar
@@ -47,10 +59,10 @@ export function BankingSandboxModal({
         }
       } else {
         const errorText = await res.text();
-        toast.error(`Failed to seed banking sandbox: ${errorText || res.statusText}`);
+        toast.error(`Failed to seed banking demo sandbox: ${errorText || res.statusText}`);
       }
     } catch (err: any) {
-      toast.error(`Error loading banking sandbox: ${err.message || 'Network error'}`);
+      toast.error(`Error loading banking demo sandbox: ${err.message || 'Network error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -63,19 +75,27 @@ export function BankingSandboxModal({
       aria-labelledby="banking-sandbox-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
     >
-      <div className="relative w-full max-w-2xl bg-background border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="relative w-full max-w-2xl bg-background border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-start justify-between p-5 border-b bg-card">
+        <div className="flex items-start justify-between p-5 border-b bg-card shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
               <Landmark className="h-6 w-6" />
             </div>
             <div>
-              <h3 id="banking-sandbox-modal-title" className="text-base font-bold text-foreground">
-                Reference Banking Sandbox
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 id="banking-sandbox-modal-title" className="text-base font-bold text-foreground">
+                  Banking Demo Sandbox
+                </h3>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  Optional Demo
+                </span>
+                <span className="hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  ISO8583 Showcase
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                5-Minute Financial Quickstart & ISO8583 Lifecycle Simulation
+                Reference Financial Multi-Protocol & Stateful Transaction Lifecycle Demonstration
               </p>
             </div>
           </div>
@@ -89,17 +109,64 @@ export function BankingSandboxModal({
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-          {/* Architecture Overview */}
-          <div className="text-xs text-muted-foreground leading-relaxed">
-            The Reference Banking Sandbox provides production-grade endpoints demonstrating how Dynamic Mock orchestrates stateful, multi-protocol payment transactions across ISO8583 banking networks and REST gateways.
+        {/* Modal Scrollable Content */}
+        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+          {/* Visual Workflow Distinction Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3.5 rounded-xl border border-border/80 bg-muted/20">
+            <div className="space-y-1 p-2 rounded-lg bg-background/80 border border-border/60">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Code2 className="h-3.5 w-3.5 text-blue-500" />
+                <span>Regular REST Mocking</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Your standard workbench workflow. Create custom endpoints, test request matchers, dynamic response templates, and latency simulation.
+              </p>
+            </div>
+
+            <div className="space-y-1 p-2 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>Banking Demo Sandbox</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                An optional evaluation demo showcasing complex ISO8583 banking message flows, payment switch lifecycles, and Redis state machines.
+              </p>
+            </div>
+          </div>
+
+          {/* Guidance Cards: "What is this?" & "Who should use this?" */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* What is this? */}
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                <div className="p-1 rounded bg-blue-500/10 text-blue-500">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </div>
+                <span>What is this?</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                A pre-packaged reference template containing simulated banking routes. It showcases how Dynamic Mock orchestrates stateful, multi-protocol payment switches across ISO8583 card networks, settlement engines, and REST API gateways.
+              </p>
+            </div>
+
+            {/* Who should use this? */}
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                <div className="p-1 rounded bg-emerald-500/10 text-emerald-500">
+                  <Users className="h-3.5 w-3.5" />
+                </div>
+                <span>Who should use this?</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Intended for FinTech engineers, payment architects, and developers evaluating multi-step state machine transactions. <span className="font-semibold text-foreground">If you only need standard REST API mocking, this demo is completely optional.</span>
+              </p>
+            </div>
           </div>
 
           {/* 4-Step Transaction Flow Visualizer */}
           <div className="space-y-3">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-              Simulated Financial Lifecycle
+              Sample Financial Lifecycle Included in Demo
             </span>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -170,39 +237,42 @@ export function BankingSandboxModal({
           </div>
 
           {/* Sandbox seed details notice */}
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-2.5 text-xs text-primary">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <div className="p-3 rounded-lg bg-muted/40 border border-border/80 flex items-center gap-2.5 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
             <span>
-              Loading the sandbox creates reference routes, payment collections, and stateful scenario choreography in your active workspace.
+              Loading this demo seeds reference routes and collections into your workspace without affecting existing custom routes. You can clear or reset it anytime.
             </span>
           </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t bg-muted/20 flex items-center justify-between">
+        <div className="p-4 border-t bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          {/* Continue with REST Mocking Action */}
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-foreground bg-background hover:bg-accent border border-border rounded-lg transition-colors cursor-pointer shadow-xs"
           >
-            Close
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Continue with REST Mocking</span>
           </button>
 
+          {/* Load Sandbox Action */}
           <button
             type="button"
             onClick={handleLoadSandbox}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg shadow-sm transition-all cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg shadow-sm transition-all cursor-pointer"
           >
             {isLoading ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Seeding Sandbox...</span>
+                <span>Seeding Demo Sandbox...</span>
               </>
             ) : (
               <>
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span>Load / Reset Banking Sandbox</span>
+                <span>Load / Reset Banking Demo Sandbox</span>
               </>
             )}
           </button>

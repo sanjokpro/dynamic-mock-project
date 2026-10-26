@@ -46,7 +46,7 @@ Replace your test switches and legacy stubs with a single platform that speaks I
 - **One-Click "Copy as cURL"**: Export fully formatted, escaped terminal commands directly from Test Client and Response viewer
 - **Segmented Workbench**: Clean segregation of Test Client execution runner from Mock Stub server definition
 - **Contextual Help Popovers**: Accessible (ⓘ) guides for header regex, query matchers, body validation, and GraalVM scripts
-- **Interactive Banking Sandbox**: Dedicated Header and Sidebar launchers with visual ISO8583 transaction lifecycle flows
+- **Interactive Banking Demo Sandbox**: Dedicated Header and Sidebar launchers with visual ISO8583 transaction lifecycle flows (optional evaluation showcase)
 - **Response Explorer**: Real-time HTTP status reason phrases (`200 OK`, `404 Not Found`), payload byte metrics, and substring search highlighting
 - **Power User Hotkeys**: Instant request execution (`Cmd+Enter`), route saving (`Cmd+S`), and cheatsheet modal (`?`)
 - Dynamic route creation without server restart

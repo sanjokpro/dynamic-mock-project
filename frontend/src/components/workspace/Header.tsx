@@ -257,11 +257,11 @@ export function Header() {
             type="button"
             onClick={() => setBankingSandboxOpen(true)}
             className="flex items-center gap-1.5 px-2.5 h-7 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-all shadow-xs cursor-pointer border border-primary/20"
-            title="Open Reference Banking Sandbox (ISO8583 Simulation)"
+            title="Open Banking Demo Sandbox (Optional ISO8583 Simulation)"
           >
             <Landmark className="h-3.5 w-3.5" />
-            <span>Banking Sandbox</span>
-            <span className="hidden lg:inline text-[9px] font-bold bg-primary text-primary-foreground px-1 py-0.2 rounded">Moat</span>
+            <span>Banking Demo Sandbox</span>
+            <span className="hidden lg:inline text-[9px] font-bold bg-primary text-primary-foreground px-1 py-0.2 rounded">Demo</span>
           </button>
           <button
             onClick={() => setImportOpen(true)}

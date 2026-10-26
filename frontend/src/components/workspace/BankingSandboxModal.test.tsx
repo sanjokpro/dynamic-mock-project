@@ -15,18 +15,23 @@ describe('BankingSandboxModal', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders modal dialog and transaction steps when open is true', () => {
+  it('renders modal dialog with guidance sections, steps, and distinction banner', () => {
     render(
       <BankingSandboxModal open={true} onClose={() => {}} />
     );
 
     expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByText('Reference Banking Sandbox')).toBeDefined();
+    expect(screen.getAllByText('Banking Demo Sandbox').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Optional Demo')).toBeDefined();
+    expect(screen.getByText('Regular REST Mocking')).toBeDefined();
+    expect(screen.getByText('What is this?')).toBeDefined();
+    expect(screen.getByText('Who should use this?')).toBeDefined();
     expect(screen.getByText('0100 Authorization')).toBeDefined();
     expect(screen.getByText('0200 Financial Presentment')).toBeDefined();
     expect(screen.getByText('0400 Acquirer Reversal')).toBeDefined();
     expect(screen.getByText('State Machine Inspector')).toBeDefined();
-    expect(screen.getByRole('button', { name: /Load \/ Reset Banking Sandbox/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Continue with REST Mocking/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Load \/ Reset Banking Demo Sandbox/i })).toBeDefined();
   });
 
   it('triggers POST /api/sandbox/load on button click and invokes callbacks', async () => {
@@ -47,7 +52,7 @@ describe('BankingSandboxModal', () => {
       />
     );
 
-    const loadBtn = screen.getByRole('button', { name: /Load \/ Reset Banking Sandbox/i });
+    const loadBtn = screen.getByRole('button', { name: /Load \/ Reset Banking Demo Sandbox/i });
     fireEvent.click(loadBtn);
 
     await waitFor(() => {
@@ -55,6 +60,15 @@ describe('BankingSandboxModal', () => {
       expect(onLoadSuccess).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it('invokes onClose when "Continue with REST Mocking" is clicked', () => {
+    const onClose = vi.fn();
+    render(<BankingSandboxModal open={true} onClose={onClose} />);
+
+    const continueBtn = screen.getByRole('button', { name: /Continue with REST Mocking/i });
+    fireEvent.click(continueBtn);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('closes on Escape key press', () => {

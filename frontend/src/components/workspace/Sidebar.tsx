@@ -241,25 +241,25 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-        {/* Pinned Reference Banking Sandbox Entry */}
+        {/* Pinned Banking Demo Sandbox Entry */}
         <div className="mb-2">
           <button
             type="button"
             onClick={() => setSandboxModalOpen(true)}
             className="flex items-center gap-2 w-full p-2 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-all cursor-pointer group text-left"
-            title="Open Reference Banking Sandbox (ISO8583 Simulation)"
+            title="Open Banking Demo Sandbox (Optional ISO8583 Simulation)"
           >
             <div className="p-1 rounded bg-primary/20 text-primary group-hover:scale-105 transition-transform">
               <Landmark className="h-3.5 w-3.5" />
             </div>
             <div className="flex-1 min-w-0">
-              <span className="block truncate font-semibold">Banking Sandbox</span>
+              <span className="block truncate font-semibold">Banking Demo Sandbox</span>
               <span className="block text-[10px] text-muted-foreground font-normal truncate">
-                ISO8583 • 0100 / 0200 / 0400
+                Optional Demo • ISO8583
               </span>
             </div>
             <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-              Moat
+              Demo
             </span>
           </button>
         </div>
