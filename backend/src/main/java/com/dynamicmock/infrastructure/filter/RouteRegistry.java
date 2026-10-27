@@ -203,6 +203,15 @@ public class RouteRegistry {
         if (path == null) {
             return "/";
         }
+        // Strip any accidental query string suffix (e.g. /service/?x=y -> /service/)
+        int queryIdx = path.indexOf('?');
+        if (queryIdx >= 0) {
+            path = path.substring(0, queryIdx);
+        }
+        path = path.trim();
+        if (path.isEmpty()) {
+            return "/";
+        }
         // Ensure path starts with /
         if (!path.startsWith("/")) {
             path = "/" + path;

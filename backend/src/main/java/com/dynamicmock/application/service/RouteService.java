@@ -37,7 +37,7 @@ public class RouteService {
     public RouteResponse createRoute(CreateRouteRequest request) {
         MockRoute route = MockRoute.builder()
             .id(UUID.randomUUID().toString())
-            .path(request.getPath())
+            .path(sanitizePath(request.getPath()))
             .method(request.getMethod().toUpperCase())
             .matchers(request.getMatchers())
             .responseTemplate(request.getResponseTemplate())
@@ -72,10 +72,15 @@ public class RouteService {
         saveRouteVersion(route, "Route updated");
         
         boolean wasActive = Boolean.TRUE.equals(route.getActive());
+        MockRoute previousSnapshot = MockRoute.builder()
+            .id(route.getId())
+            .method(route.getMethod())
+            .path(route.getPath())
+            .build();
         
         // Update fields
         if (request.getPath() != null) {
-            route.setPath(request.getPath());
+            route.setPath(sanitizePath(request.getPath()));
         }
         if (request.getMethod() != null) {
             route.setMethod(request.getMethod().toUpperCase());
@@ -122,11 +127,11 @@ public class RouteService {
             if (route.getActive()) {
                 routeRegistry.register(route);
             } else {
-                routeRegistry.unregister(route);
+                routeRegistry.unregister(previousSnapshot);
             }
         } else if (route.getActive()) {
-            // Re-register if active to update the route
-            routeRegistry.unregister(route);
+            // Re-register if active: unregister old path/method snapshot first
+            routeRegistry.unregister(previousSnapshot);
             routeRegistry.register(route);
         }
         
@@ -211,6 +216,18 @@ public class RouteService {
     /**
      * Save a version of the route before changes
      */
+    private String sanitizePath(String rawPath) {
+        if (rawPath == null) {
+            return null;
+        }
+        int queryIdx = rawPath.indexOf('?');
+        String clean = (queryIdx >= 0 ? rawPath.substring(0, queryIdx) : rawPath).trim();
+        if (clean.isEmpty()) {
+            return "/";
+        }
+        return clean.startsWith("/") ? clean : "/" + clean;
+    }
+
     private void saveRouteVersion(MockRoute route, String description) {
         try {
             int nextVersion = versionRepository.findTopByRouteIdOrderByVersionNumberDesc(route.getId())

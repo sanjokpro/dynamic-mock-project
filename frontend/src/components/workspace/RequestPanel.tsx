@@ -146,9 +146,9 @@ export function RequestPanel() {
 
   const handleSave = useCallback(async () => {
     if (!activeRoute) return;
-    let effectivePath = path;
+    let effectivePath = path.split('?')[0].trim();
     if (url) {
-      const clean = url.replace(/\{\{BASE_URL\}\}/g, '').trim();
+      const clean = url.replace(/\{\{BASE_URL\}\}/g, '').split('?')[0].trim();
       if (clean) effectivePath = clean.startsWith('/') ? clean : '/' + clean;
     }
 
@@ -448,7 +448,7 @@ export function RequestPanel() {
               onChange={(e) => {
                 const val = e.target.value;
                 setUrl(val);
-                const clean = val.replace(/\{\{BASE_URL\}\}/g, '').trim();
+                const clean = val.replace(/\{\{BASE_URL\}\}/g, '').split('?')[0].trim();
                 setPath(clean.startsWith('/') ? clean : (clean ? '/' + clean : '/'));
               }}
               placeholder="{{BASE_URL}}/api/example"

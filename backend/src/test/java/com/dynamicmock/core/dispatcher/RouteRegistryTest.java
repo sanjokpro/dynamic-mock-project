@@ -133,11 +133,15 @@ class RouteRegistryTest {
     void testNormalizePath() {
         MockRoute route1 = createMockRoute("GET", "users", "1"); // No leading slash
         MockRoute route2 = createMockRoute("GET", "/users/", "2"); // Trailing slash
+        MockRoute route3 = createMockRoute("GET", "/tcws/transconnectservice/?x=y", "3"); // Query string in path
         
         routeRegistry.register(route1);
         routeRegistry.register(route2);
+        routeRegistry.register(route3);
         
         assertFalse(routeRegistry.findRoutes("GET", "/users").isEmpty());
+        assertFalse(routeRegistry.findRoutes("GET", "/tcws/transconnectservice").isEmpty());
+        assertFalse(routeRegistry.findRoutes("GET", "/tcws/transconnectservice/").isEmpty());
     }
     
     @Test

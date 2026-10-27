@@ -88,6 +88,26 @@ class RouteServiceTest {
         verify(repository, times(1)).findById("test-id");
         verify(repository, times(1)).save(any(MockRoute.class));
     }
+
+    @Test
+    void testUpdateRouteStripsQueryStringAndUnregistersPreviousPath() {
+        mockRoute.setActive(true);
+        mockRoute.setPath("/tcws/transconnectservice/");
+
+        UpdateRouteRequest request = new UpdateRouteRequest();
+        request.setPath("/tcws/transconnectservice/?x=y");
+
+        when(repository.findById("test-id")).thenReturn(Optional.of(mockRoute));
+        when(repository.save(any(MockRoute.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        RouteResponse response = routeService.updateRoute("test-id", request);
+
+        assertEquals("/tcws/transconnectservice/", response.getPath());
+        ArgumentCaptor<MockRoute> unregisterCaptor = ArgumentCaptor.forClass(MockRoute.class);
+        verify(routeRegistry).unregister(unregisterCaptor.capture());
+        assertEquals("/tcws/transconnectservice/", unregisterCaptor.getValue().getPath());
+        verify(routeRegistry).register(any(MockRoute.class));
+    }
     
     @Test
     void testUpdateRouteNotFound() {
