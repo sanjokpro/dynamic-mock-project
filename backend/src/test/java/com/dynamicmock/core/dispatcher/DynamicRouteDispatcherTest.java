@@ -237,5 +237,39 @@ class DynamicRouteDispatcherTest {
             return pathVars != null && "123".equals(pathVars.get("id"));
         }));
     }
+
+    @Test
+    void preHandle_postScriptCanReadAndMutateRenderedTemplate() throws Exception {
+        // Given
+        testRoute.setPath("/mock/orders");
+        testRoute.setResponseTemplate("{\"trackingCode\": \"ABC\"}");
+        testRoute.setPostScript("response.body = response.body.replace('ABC', 'ABCX');");
+
+        when(request.getRequestURI()).thenReturn("/mock/orders");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getContextPath()).thenReturn("");
+        when(routeRegistry.findRoutes("GET", "/orders")).thenReturn(new java.util.ArrayList<>(java.util.List.of(baseMatch)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+        when(templateEngine.render(anyString(), any())).thenReturn("{\"trackingCode\": \"ABC\"}");
+
+        doAnswer(invocation -> {
+            com.dynamicmock.adapter.out.script.ScriptContext ctx = invocation.getArgument(2);
+            org.junit.jupiter.api.Assertions.assertEquals("{\"trackingCode\": \"ABC\"}", ctx.getResponseBody());
+            ctx.setResponseBody("{\"trackingCode\": \"ABCX\"}");
+            return com.dynamicmock.adapter.out.script.ScriptEngine.ScriptExecutionResult.builder()
+                    .context(ctx)
+                    .build();
+        }).when(scriptEngine).execute(anyString(), any(), any());
+
+        StringWriter responseWriter = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
+
+        // When
+        dispatcher.preHandle(request, response, new Object());
+
+        // Then
+        org.junit.jupiter.api.Assertions.assertEquals("{\"trackingCode\": \"ABCX\"}", responseWriter.toString());
+    }
 }
+
 

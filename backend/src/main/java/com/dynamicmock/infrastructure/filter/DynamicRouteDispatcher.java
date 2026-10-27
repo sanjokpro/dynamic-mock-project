@@ -198,6 +198,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 templateContext.put("env", envVars);
                 responseBody = templateEngine.render(responseTemplate, templateContext);
             }
+            scriptContext.setResponseBody(responseBody);
             
             // Execute post-script (can modify responseBody)
             if (postScript != null && !postScript.trim().isEmpty()) {
