@@ -4,16 +4,23 @@ import React, { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Globe, Lock, User, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrandingContext } from '@/context/BrandingContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, isLoading, login } = useAuth();
+  const { branding } = useBrandingContext();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [branding.logoUrl]);
 
   // If already authenticated redirect to workspace
   useEffect(() => {
@@ -46,27 +53,47 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-background p-4 relative"
+      style={
+        branding.loginBackgroundUrl
+          ? {
+              backgroundImage: `url(${branding.loginBackgroundUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
+          : undefined
+      }
+    >
       {/* Background gradient accent */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10"
         style={{
           background:
-            'radial-gradient(ellipse 80% 60% at 50% -10%, hsl(var(--primary) / 0.15), transparent)',
+            'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(var(--primary-rgb, 59, 130, 246), 0.15), transparent)',
         }}
       />
 
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="bg-primary p-3 rounded-xl shadow-lg shadow-primary/25">
-            <Globe className="h-6 w-6 text-primary-foreground" />
-          </div>
+          {branding.logoUrl && !logoError ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.productName}
+              onError={() => setLogoError(true)}
+              className="h-12 w-auto max-w-[200px] object-contain"
+            />
+          ) : (
+            <div className="bg-primary p-3 rounded-xl shadow-lg shadow-primary/25">
+              <Globe className="h-6 w-6 text-primary-foreground" />
+            </div>
+          )}
           <div className="text-center">
-            <h1 className="text-xl font-bold tracking-tight">Dynamic Mock</h1>
+            <h1 className="text-xl font-bold tracking-tight">{branding.productName}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Enterprise Integration Simulation Platform
+              {branding.organizationName}
             </p>
           </div>
         </div>
@@ -171,7 +198,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-muted-foreground mt-4">
-          Dynamic Mock · Enterprise Integration Simulation Platform
+          {branding.footerText}
         </p>
       </div>
     </div>

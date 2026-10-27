@@ -8,6 +8,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useCollections } from '@/hooks/useCollections';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrandingContext } from '@/context/BrandingContext';
 import { cn } from '@/lib/utils';
 import { MockRoute } from '@/types';
 import { ImportModal } from './ImportModal';
@@ -33,7 +34,13 @@ export function Header() {
   const { theme, toggleTheme } = useTheme();
   const { routes, createRoute } = useRoutes();
   const { user, logout } = useAuth();
+  const { branding } = useBrandingContext();
+  const [logoError, setLogoError] = useState(false);
   const userId = user?.id ?? '';
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [branding.logoUrl]);
   const { collections } = useCollections(userId);
   const { prompt } = useDialogs();
   const [envDropdownOpen, setEnvDropdownOpen] = useState(false);
@@ -197,10 +204,21 @@ export function Header() {
 
         {/* Logo */}
         <div className="flex items-center gap-2 mr-1">
-          <div className="bg-primary p-1 rounded-md">
-            <Globe className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-sm tracking-tight hidden sm:inline">Dynamic Mock</span>
+          {branding.logoUrl && !logoError ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.productName}
+              onError={() => setLogoError(true)}
+              className="h-5 w-auto object-contain"
+            />
+          ) : (
+            <div className="bg-primary p-1 rounded-md">
+              <Globe className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+          )}
+          <span className="font-semibold text-sm tracking-tight hidden sm:inline">
+            {branding.productName}
+          </span>
         </div>
 
         <div className="w-px h-5 bg-border hidden sm:block" />
