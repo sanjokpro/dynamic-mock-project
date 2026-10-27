@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Globe, ChevronDown, Sun, Moon, Play, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings, LogOut, Landmark, HelpCircle } from 'lucide-react';
+import { Globe, ChevronDown, Sun, Moon, Play, Bell, ArrowRight, Plus, Search, Menu, Route, X, Import, Settings, LogOut, Landmark, HelpCircle, Palette } from 'lucide-react';
 import { useEnvironments } from '@/hooks/useEnvironments';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -15,6 +15,7 @@ import { ImportModal } from './ImportModal';
 import { EnvironmentManagerModal } from './environments/EnvironmentManagerModal';
 import { BankingSandboxModal } from './BankingSandboxModal';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+import { BrandingSettingsModal } from './BrandingSettingsModal';
 import { useDialogs } from '@/context/DialogContext';
 import { toast } from 'sonner';
 
@@ -50,6 +51,7 @@ export function Header() {
   const [importOpen, setImportOpen] = useState(false);
   const [bankingSandboxOpen, setBankingSandboxOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [brandingModalOpen, setBrandingModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -444,13 +446,27 @@ export function Header() {
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-44 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
+            <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-lg shadow-lg z-50 py-1">
               <div className="px-3 py-2 border-b border-border">
                 <p className="text-xs font-medium truncate">{user?.username}</p>
                 {user?.email && (
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">{user.email}</p>
                 )}
               </div>
+              {user?.username === 'admin' && (
+                <button
+                  id="header-branding-settings-btn"
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    setBrandingModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-foreground hover:bg-accent transition-colors"
+                >
+                  <Palette className="h-3.5 w-3.5 text-primary" />
+                  <span>Branding &amp; Appearance</span>
+                </button>
+              )}
               <button
                 id="header-logout-btn"
                 onClick={() => { setUserMenuOpen(false); logout(); }}
@@ -468,6 +484,7 @@ export function Header() {
       <EnvironmentManagerModal open={envManagerOpen} onClose={() => setEnvManagerOpen(false)} />
       <BankingSandboxModal open={bankingSandboxOpen} onClose={() => setBankingSandboxOpen(false)} />
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <BrandingSettingsModal open={brandingModalOpen} onClose={() => setBrandingModalOpen(false)} />
     </header>
   );
 }
