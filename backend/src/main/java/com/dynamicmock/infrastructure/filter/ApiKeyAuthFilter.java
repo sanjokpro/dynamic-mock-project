@@ -42,6 +42,13 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Short-circuit: public read of instance branding (needed to brand the login screen and SSR).
+        // Only GET on the exact path is exempt; branding mutations still require credentials.
+        if ("GET".equalsIgnoreCase(request.getMethod()) && "/api/config/branding".equals(uri)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // Short-circuit: if Bearer token present, delegate to JwtAuthenticationFilter
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

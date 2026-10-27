@@ -86,3 +86,14 @@ app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+# White-label instance branding (Sprint 6) — single-tenant, instance-wide.
+# Every value defaults to empty: only non-blank WHITE_LABEL_* variables override the
+# branding stored via the admin UI. Platform defaults live in OrganizationConfig.createDefault().
+white-label:
+  product-name: ${WHITE_LABEL_PRODUCT_NAME:}
+  org-name: ${WHITE_LABEL_ORG_NAME:}
+  logo-url: ${WHITE_LABEL_LOGO_URL:}
+  favicon-url: ${WHITE_LABEL_FAVICON_URL:}
+  primary-color: ${WHITE_LABEL_PRIMARY_COLOR:}
+  secondary-color: ${WHITE_LABEL_SECONDARY_COLOR:}
+  footer-text: ${WHITE_LABEL_FOOTER_TEXT:}
