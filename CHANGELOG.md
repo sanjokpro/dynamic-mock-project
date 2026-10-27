@@ -5,6 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — Sprint 6: White Label Foundation & Enterprise Customization (2026-10-27)
+
+### Added
+
+#### Backend Domain & Hexagonal Architecture
+- `OrganizationConfig.java` — Pure POJO domain entity (`SINGLETON_ID = "instance"`) representing single-tenant instance branding with `createDefault()` factory and zero framework annotations.
+- `OrganizationConfigRepository.java` & `OrganizationConfigUseCase.java` — Outbound and inbound hexagonal ports for instance branding persistence and resolution.
+- `OrganizationConfigMongoEntity.java`, `OrganizationConfigMapper.java`, `MongoOrganizationConfigRepository.java`, `OrganizationConfigRepositoryImpl.java` — MongoDB persistence adapter (`organization_config` collection).
+- `BrandingEnvironmentProperties.java` — Binds `white-label.*` (`WHITE_LABEL_*` environment variables) with regex/size sanitization.
+- `RedisBrandingCacheService.java` — Caches effective branding JSON under `config:branding:instance` (24h TTL) with atomic synchronous eviction and fail-open fallback to MongoDB.
+- `OrganizationConfigService.java` — Resolves effective branding with deterministic precedence (`WHITE_LABEL_*` env overrides → MongoDB stored config → platform defaults).
+- `BrandingBootstrapRunner.java` — Evicts stale Redis branding cache on boot and seeds initial `OrganizationConfig` when the collection is empty.
+- `BrandingController.java`, `BrandingConfigRequest.java`, `BrandingConfigResponse.java` — REST controller at `/api/config/branding` (`GET` public, `PUT` and `POST /reset` restricted to administrators via `@PreAuthorize`).
+
+#### Frontend Runtime, Zero-FOUC SSR & Admin UI
+- `colorUtils.ts` — Hex-to-RGB conversion, ITU-R BT.601 luminance calculation (`0.299R + 0.587G + 0.114B`), automatic contrast foreground selection (`#0f172a` vs `#ffffff`), URL/Hex validators, and `:root` / `.dark` CSS variable synthesis.
+- `types/branding.ts`, `hooks/useBranding.ts`, `context/BrandingContext.tsx`, `context/BrandingProvider.tsx` — Live React Query + DOM style injector (`#dynamic-branding-style`, document title, and favicon synchronization).
+- `app/layout.tsx` — Server-side branding pre-fetch with 1500ms fail-safe timeout and inline `<style id="ssr-branding-theme">` injection in `<head>` for 0ms FOUC.
+- `components/workspace/Header.tsx` & `app/login/page.tsx` — Dynamic product name, organization subtitle, custom logo with graceful `<Globe>` icon fallback on error, branded login background, and legal footer text.
+- `components/workspace/BrandingSettingsModal.tsx` — Admin-only **Branding & Appearance** dialog with native color pickers, hex inputs, logo preview, live header/button contrast preview card, and confirmation-guarded **Reset to Defaults**.
+- Validation & test suites: `OrganizationConfigMapperTest`, `OrganizationConfigServiceTest`, `BrandingControllerTest`, `colorUtils.test.ts`, `BrandingProvider.test.tsx`, `BrandingSettingsModal.test.tsx`.
+
+---
+
+## [0.5.1] — Sprint 5: First-Time User Experience & Workspace Productivity (2026-10-17)
+
+### Added
+- `HeadersEditor.tsx` — Table and Raw/Bulk multiline headers editor with RFC 7230 validation and autocomplete.
+- `BankingSandboxModal.tsx` — Optional Banking Demo Sandbox overview and 1-click loader.
+- `TestClientView.tsx` & `MockDefinitionView.tsx` — Segregated RequestPanel views with "Copy as cURL", `ContextualTooltip`, `RichEmptyState`, and `KeyboardShortcutsModal`.
+
+---
+
 ## [0.4.0] — Sprint 4: Authentication Foundation & Multi-User Identity (2026-10-15)
 
 ### Added

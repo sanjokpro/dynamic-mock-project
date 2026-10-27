@@ -60,7 +60,7 @@ Replace your test switches and legacy stubs with a single platform that speaks I
 - Self-hosted — full data sovereignty
 - Docker Compose single-command deployment
 - Redis-backed state management
-- White-label ready (architecture designed, implementation upcoming)
+- **White-Label Foundation & Enterprise Customization**: Instance-wide branding via zero-rebuild `WHITE_LABEL_*` container environment variables or interactive Admin **Branding & Appearance** workspace settings with zero-FOUC SSR hydration
 - Apache 2.0 licensed
 
 
@@ -580,6 +580,57 @@ state['requestCount'] = state.get('requestCount', 0) + 1
 | POST | /api/scenarios | Create scenario |
 | POST | /api/scenarios/{name}/transition | Trigger state transition |
 | POST | /api/scenarios/{name}/reset | Reset to initial state |
+
+### Instance Branding & White-Labeling
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| GET | /api/config/branding | Public | Get effective instance branding (supports unauthenticated `/login` hydration) |
+| PUT | /api/config/branding | Admin Only | Update stored instance branding and evict Redis cache |
+| POST | /api/config/branding/reset | Admin Only | Reset stored instance branding to platform defaults |
+
+---
+
+## 🎨 White-Labeling & OEM Customization
+
+Dynamic Mock supports single-tenant, instance-wide white-labeling so banks, payment switches, and OEM partners can deploy the platform under their own corporate identity.
+
+### 1. Zero-Rebuild Docker Environment Overrides
+
+Operators can rebrand a deployment without rebuilding images by passing `WHITE_LABEL_*` environment variables to `docker compose`:
+
+```bash
+WHITE_LABEL_PRODUCT_NAME="FinTech Sandbox" \
+WHITE_LABEL_ORG_NAME="FinTech Payments Corp" \
+WHITE_LABEL_PRIMARY_COLOR="#7c3aed" \
+WHITE_LABEL_SECONDARY_COLOR="#f1f5f9" \
+WHITE_LABEL_FOOTER_TEXT="© FinTech Payments Corp — Integration Sandbox" \
+docker compose up -d
+```
+
+| Environment Variable | Property Mapping | Default Value | Validation Rule |
+|---|---|---|---|
+| `WHITE_LABEL_PRODUCT_NAME` | `white-label.product-name` | `Dynamic Mock` | Max 64 chars |
+| `WHITE_LABEL_ORG_NAME` | `white-label.org-name` | `Dynamic Mock Open Source` | Max 100 chars |
+| `WHITE_LABEL_LOGO_URL` | `white-label.logo-url` | `null` | `http(s)://` or `data:image/...` |
+| `WHITE_LABEL_FAVICON_URL` | `white-label.favicon-url` | `/favicon.ico` | `http(s)://`, `data:image/`, or `/path` |
+| `WHITE_LABEL_PRIMARY_COLOR` | `white-label.primary-color` | `#3b82f6` | Hex `#RGB` or `#RRGGBB` |
+| `WHITE_LABEL_SECONDARY_COLOR` | `white-label.secondary-color` | `#f1f5f9` | Hex `#RGB` or `#RRGGBB` |
+| `WHITE_LABEL_FOOTER_TEXT` | `white-label.footer-text` | `Dynamic Mock — Open Source...` | Max 255 chars |
+
+### 2. Layered Configuration Precedence
+
+1. **Highest Priority**: Non-empty `WHITE_LABEL_*` container environment variables.
+2. **Medium Priority**: MongoDB configuration saved via the Admin UI (`organization_config`, singleton ID `"instance"`).
+3. **Lowest Priority**: Platform defaults (`OrganizationConfig.createDefault()`).
+
+Effective branding is cached in Redis under `config:branding:instance` (24h TTL) with synchronous eviction on `PUT` or `POST /reset` and fail-open fallback to MongoDB.
+
+### 3. Interactive Admin Branding & Appearance UI
+
+1. Sign in as the instance administrator (`admin`).
+2. Click the user avatar in the top-right header and select **Branding & Appearance**.
+3. Configure Product Name, Organization Name, Logo URL, Favicon URL, Primary/Secondary brand colors (with automatic ITU-R BT.601 luminance foreground contrast calculation), and Legal Footer Text.
+4. Inspect the **Live Visual Preview** card and click **Save Changes** for immediate zero-reload CSS variable injection across light and dark modes, or click **Reset to Defaults** to restore original Dynamic Mock branding.
 
 ---
 

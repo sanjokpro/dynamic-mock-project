@@ -61,6 +61,15 @@ services:
       - APP_AUTH_ALLOW_REGISTRATION=${APP_AUTH_ALLOW_REGISTRATION:-false}
       # CORS — space-separated origins allowed to call /api/**
       - APP_CORS_ALLOWED_ORIGINS=${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # ── White-Label Instance Branding (Sprint 6 — Zero-Rebuild OEM Overrides) ──
+      # Leave empty to use values configured in the Admin UI or platform defaults.
+      - WHITE_LABEL_PRODUCT_NAME=${WHITE_LABEL_PRODUCT_NAME:-}
+      - WHITE_LABEL_ORG_NAME=${WHITE_LABEL_ORG_NAME:-}
+      - WHITE_LABEL_LOGO_URL=${WHITE_LABEL_LOGO_URL:-}
+      - WHITE_LABEL_FAVICON_URL=${WHITE_LABEL_FAVICON_URL:-}
+      - WHITE_LABEL_PRIMARY_COLOR=${WHITE_LABEL_PRIMARY_COLOR:-}
+      - WHITE_LABEL_SECONDARY_COLOR=${WHITE_LABEL_SECONDARY_COLOR:-}
+      - WHITE_LABEL_FOOTER_TEXT=${WHITE_LABEL_FOOTER_TEXT:-}
     ports:
       - "8583:8583" # ISO8583 default port
     depends_on:

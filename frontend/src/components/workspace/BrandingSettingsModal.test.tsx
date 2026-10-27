@@ -50,11 +50,15 @@ describe('BrandingSettingsModal', () => {
     renderModal(true);
 
     expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByLabelText(/Product Name/i)).toHaveValue('Dynamic Mock');
-    expect(screen.getByLabelText(/Organization Name/i)).toHaveValue(
+    expect((screen.getByLabelText(/Product Name/i) as HTMLInputElement).value).toBe(
+      'Dynamic Mock'
+    );
+    expect((screen.getByLabelText(/Organization Name/i) as HTMLInputElement).value).toBe(
       'Dynamic Mock Open Source'
     );
-    expect(screen.getByLabelText(/Primary Brand Color/i)).toHaveValue('#3b82f6');
+    expect((screen.getByLabelText(/Primary Brand Color/i) as HTMLInputElement).value).toBe(
+      '#3b82f6'
+    );
     expect(screen.getByTestId('branding-live-preview')).toBeDefined();
   });
 
@@ -79,9 +83,8 @@ describe('BrandingSettingsModal', () => {
     const saveButton = screen.getByRole('button', { name: /Save Changes/i });
     fireEvent.click(saveButton);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /Primary color must be a valid hex code/i
-    );
+    const alertEl = await screen.findByRole('alert');
+    expect(alertEl.textContent).toMatch(/Primary color must be a valid hex code/i);
     expect(updateBrandingMock).not.toHaveBeenCalled();
   });
 
