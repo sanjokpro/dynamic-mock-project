@@ -19,6 +19,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `BrandingBootstrapRunner.java` — Evicts stale Redis branding cache on boot and seeds initial `OrganizationConfig` when the collection is empty.
 - `BrandingController.java`, `BrandingConfigRequest.java`, `BrandingConfigResponse.java` — REST controller at `/api/config/branding` (`GET` public, `PUT` and `POST /reset` restricted to administrators via `@PreAuthorize`).
 
+#### Polyglot Scripting & Template Pipeline
+- `DynamicRouteDispatcher.java` — Wired rendered Handlebars template output into `ScriptContext.setResponseBody(responseBody)` prior to executing post-scripts, enabling JavaScript and Python post-scripts to inspect, parse, and mutate template-generated payloads (`response.body`).
+- `DynamicRouteDispatcherTest.java` — Added unit test `preHandle_postScriptCanReadAndMutateRenderedTemplate()` verifying post-script modification of rendered template fields.
+
 #### Frontend Runtime, Zero-FOUC SSR & Admin UI
 - `colorUtils.ts` — Hex-to-RGB conversion, ITU-R BT.601 luminance calculation (`0.299R + 0.587G + 0.114B`), automatic contrast foreground selection (`#0f172a` vs `#ffffff`), URL/Hex validators, and `:root` / `.dark` CSS variable synthesis.
 - `types/branding.ts`, `hooks/useBranding.ts`, `context/BrandingContext.tsx`, `context/BrandingProvider.tsx` — Live React Query + DOM style injector (`#dynamic-branding-style`, document title, and favicon synchronization).

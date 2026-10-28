@@ -533,6 +533,34 @@ else:
 state['requestCount'] = state.get('requestCount', 0) + 1
 ```
 
+### Post-Script Access to Rendered Response Template
+
+The `response.body` property in a **Post-Script** contains the fully rendered output from the **Response Template** (with all Handlebars helpers like `{{$randomUUID}}`, `{{$randomString}}`, `{{now}}`, and `{{request.*}}` already resolved).
+
+This enables powerful programmable workflows where the template generates the baseline mock payload, and the post-script performs arbitrary transformations before the response is returned to the client:
+
+**JavaScript:**
+```javascript
+// Post-Script: Parse rendered template output, mutate fields, and return
+const data = JSON.parse(response.body);
+
+data.trackingCode += "X";
+
+response.body = JSON.stringify(data, null, 2);
+```
+
+**Python:**
+```python
+# Post-Script: Parse rendered template output, mutate fields, and return
+import json
+
+data = json.loads(response['body'])
+data['trackingCode'] += 'X'
+response['body'] = json.dumps(data, indent=2)
+```
+
+> **Platform Advantage**: This allows developers to treat the template output as an intermediate data structure rather than an immutable output. You can let the template engine generate realistic mock data (UUIDs, timestamps, realistic emails) and use light scripting only for dynamic business logic or custom mutations.
+
 ---
 
 ## API Reference
