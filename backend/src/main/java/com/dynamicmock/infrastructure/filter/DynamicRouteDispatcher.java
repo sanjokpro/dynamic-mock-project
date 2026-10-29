@@ -43,20 +43,29 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        long startTime = System.currentTimeMillis();
+        long startNano = System.nanoTime();
         String path = request.getRequestURI();
         String method = request.getMethod();
         
         // Only handle /mock/** paths
-        if (!path.startsWith("/mock")) {
+        if (path == null || !path.startsWith("/mock")) {
             return true; // Continue to next interceptor
         }
+        
+        // Permissive CORS for /mock/** simulation endpoints (enables sandboxed Origin: null preview iframes)
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD");
+        response.setHeader("Access-Control-Allow-Headers", "*");
         
         // Remove /mock prefix
         String mockPath = path.substring(5); // "/mock".length()
         if (mockPath.isEmpty()) {
             mockPath = "/";
         }
+        
+        String rawQueryString = request.getQueryString();
+        Map<String, String> reqHeaders = extractRequestHeaders(request);
+        Map<String, String> reqQueryParams = extractQueryParams(request);
         
         // Get request body for matcher validation
         String requestBody = null;
@@ -67,6 +76,10 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         // Find matching routes (considering path pattern)
         java.util.List<RouteRegistry.RouteMatch> matches = routeRegistry.findRoutes(method, mockPath);
         if (matches.isEmpty()) {
+            if ("OPTIONS".equalsIgnoreCase(method)) {
+                response.setStatus(HttpServletResponse.SC_OK);
+                return false;
+            }
             log.debug("No route found for {} {}", method, mockPath);
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             try {
@@ -94,9 +107,10 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         
         if (match == null) {
             log.debug("Request does not match matchers for any route {} {}", method, mockPath);
+            String noMatchBody = "{\"error\":\"Request does not match route matchers\"}";
             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             try {
-                response.getWriter().write("{\"error\":\"Request does not match route matchers\"}");
+                response.getWriter().write(noMatchBody);
             } catch (IOException e) {
                 log.error("Error writing response", e);
             }
@@ -106,8 +120,14 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .resourceId(matches.get(0).getRoute().getId())
                 .method(method)
                 .path(mockPath)
+                .queryString(rawQueryString)
+                .queryParams(reqQueryParams)
+                .requestHeaders(reqHeaders)
+                .requestBody(requestBody)
                 .status(404)
-                .durationMs(System.currentTimeMillis() - startTime)
+                .responseHeaders(Map.of("Content-Type", "application/json"))
+                .responseBody(noMatchBody)
+                .durationMs(computeDurationMs(startNano))
                 .matchName("No Match (Matchers)")
                 .build());
             return false;
@@ -218,6 +238,14 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             // Send response
             sendResponse(response, route, scriptContext, responseBody);
 
+            int finalStatus = scriptContext.getStatus() != null ? scriptContext.getStatus() :
+                (route.getResponseStatus() != null ? route.getResponseStatus() : 200);
+            if (response.getStatus() > 0) {
+                finalStatus = response.getStatus();
+            }
+
+            Map<String, String> finalResponseHeaders = resolveFinalResponseHeaders(route, scriptContext);
+
             // Trigger async webhook if configured
             if (scriptContext.getWebhook() != null && !scriptContext.getWebhook().isEmpty()) {
                 try {
@@ -232,16 +260,23 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .resourceId(route.getId())
                 .method(method)
                 .path(mockPath)
-                .status(response.getStatus())
-                .durationMs(System.currentTimeMillis() - startTime)
+                .queryString(rawQueryString)
+                .queryParams(reqQueryParams)
+                .requestHeaders(reqHeaders)
+                .requestBody(scriptContext.getBody())
+                .status(finalStatus)
+                .responseHeaders(finalResponseHeaders)
+                .responseBody(responseBody)
+                .durationMs(computeDurationMs(startNano))
                 .matchName(matchName)
                 .build());
             
         } catch (Exception e) {
             log.error("Error processing mock route: {}", e.getMessage(), e);
+            String errorBody = "{\"error\":\"Internal server error: " + e.getMessage() + "\"}";
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             try {
-                response.getWriter().write("{\"error\":\"Internal server error: " + e.getMessage() + "\"}");
+                response.getWriter().write(errorBody);
             } catch (IOException ex) {
                 log.error("Error writing error response", ex);
             }
@@ -250,37 +285,80 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .resourceId(route.getId())
                 .method(method)
                 .path(mockPath)
+                .queryString(rawQueryString)
+                .queryParams(reqQueryParams)
+                .requestHeaders(reqHeaders)
+                .requestBody(requestBody)
                 .status(500)
-                .durationMs(System.currentTimeMillis() - startTime)
+                .responseHeaders(Map.of("Content-Type", "application/json"))
+                .responseBody(errorBody)
+                .durationMs(computeDurationMs(startNano))
                 .matchName(matchName + " (Error)")
                 .build());
         }
         
         return false; // Stop processing, we've handled the request
     }
-    
-    private ScriptContext buildScriptContext(HttpServletRequest request, RouteRegistry.RouteMatch match) {
-        // Extract headers
-        Map<String, String> headers = Collections.list(request.getHeaderNames())
+
+    private double computeDurationMs(long startNano) {
+        double rawMs = (System.nanoTime() - startNano) / 1_000_000.0;
+        return Math.round(rawMs * 100.0) / 100.0;
+    }
+
+    private Map<String, String> extractRequestHeaders(HttpServletRequest request) {
+        if (request.getHeaderNames() == null) {
+            return Collections.emptyMap();
+        }
+        return Collections.list(request.getHeaderNames())
             .stream()
             .collect(Collectors.toMap(
                 name -> name,
-                request::getHeader
+                name -> request.getHeader(name) != null ? request.getHeader(name) : "",
+                (v1, v2) -> v2
             ));
-        
-        // Extract query parameters
-        Map<String, String> queryParams = request.getParameterMap().entrySet().stream()
+    }
+
+    private Map<String, String> extractQueryParams(HttpServletRequest request) {
+        if (request.getParameterMap() == null) {
+            return Collections.emptyMap();
+        }
+        return request.getParameterMap().entrySet().stream()
+            .filter(entry -> entry.getValue() != null && entry.getValue().length > 0)
             .collect(Collectors.toMap(
                 Map.Entry::getKey,
-                entry -> entry.getValue()[0] // Take first value
+                entry -> entry.getValue()[0],
+                (v1, v2) -> v2
             ));
+    }
+
+    private Map<String, String> resolveFinalResponseHeaders(MockRoute route, ScriptContext context) {
+        Map<String, String> merged = new HashMap<>();
+        if (route.getResponseHeaders() != null) {
+            merged.putAll(route.getResponseHeaders());
+        }
+        if (context.getResponseHeaders() != null) {
+            merged.putAll(context.getResponseHeaders());
+        }
+        boolean hasContentType = merged.keySet().stream().anyMatch(k -> "content-type".equalsIgnoreCase(k));
+        if (!hasContentType) {
+            merged.put("Content-Type", "application/json");
+        }
+        return merged;
+    }
+    
+    private ScriptContext buildScriptContext(HttpServletRequest request, RouteRegistry.RouteMatch match) {
+        // Extract headers
+        Map<String, String> headers = extractRequestHeaders(request);
+        
+        // Extract query parameters
+        Map<String, String> queryParams = extractQueryParams(request);
         
         // Extract request body
         String body = null;
         try {
             if (request instanceof CachedBodyHttpServletRequest) {
                 body = ((CachedBodyHttpServletRequest) request).getBodyAsString();
-            } else if (request.getContentLength() > 0) {
+            } else if (request.getContentLength() > 0 && request.getReader() != null) {
                 body = request.getReader().lines().collect(Collectors.joining("\n"));
             }
         } catch (IOException e) {

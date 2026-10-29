@@ -270,6 +270,57 @@ class DynamicRouteDispatcherTest {
         // Then
         org.junit.jupiter.api.Assertions.assertEquals("{\"trackingCode\": \"ABCX\"}", responseWriter.toString());
     }
+
+    @Test
+    void preHandle_shouldCaptureQueryStringAndResponseTelemetryAndSetCorsHeaders() throws Exception {
+        // Given
+        when(request.getRequestURI()).thenReturn("/mock/mobile-banking-login");
+        when(request.getQueryString()).thenReturn("action=login&returnUrl=http://localhost/mock/dest");
+        when(request.getParameterMap()).thenReturn(Map.of(
+                "action", new String[]{"login"},
+                "returnUrl", new String[]{"http://localhost/mock/dest"}
+        ));
+        when(request.getMethod()).thenReturn("GET");
+        when(routeRegistry.findRoutes("GET", "/mobile-banking-login"))
+                .thenReturn(new java.util.ArrayList<>(java.util.List.of(baseMatch)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+        when(templateEngine.render(anyString(), any())).thenReturn("<html><body>OK</body></html>");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        // When
+        boolean result = dispatcher.preHandle(request, response, new Object());
+
+        // Then
+        assertFalse(result);
+        verify(response).setHeader("Access-Control-Allow-Origin", "*");
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+
+        com.dynamicmock.application.service.TrafficLogger.ExecutionEvent event = captor.getValue();
+        org.junit.jupiter.api.Assertions.assertEquals("/mobile-banking-login", event.getPath());
+        org.junit.jupiter.api.Assertions.assertEquals("action=login&returnUrl=http://localhost/mock/dest", event.getQueryString());
+        org.junit.jupiter.api.Assertions.assertEquals("login", event.getQueryParams().get("action"));
+        org.junit.jupiter.api.Assertions.assertEquals(200, event.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals("<html><body>OK</body></html>", event.getResponseBody());
+        assertTrue(event.getDurationMs() >= 0.0);
+    }
+
+    @Test
+    void preHandle_shouldReturn200ForOptionsPreflightOnMockRoutes() throws Exception {
+        // Given
+        when(request.getRequestURI()).thenReturn("/mock/mobile-banking-login");
+        when(request.getMethod()).thenReturn("OPTIONS");
+        when(routeRegistry.findRoutes("OPTIONS", "/mobile-banking-login")).thenReturn(java.util.List.of());
+
+        // When
+        boolean result = dispatcher.preHandle(request, response, new Object());
+
+        // Then
+        assertFalse(result);
+        verify(response).setHeader("Access-Control-Allow-Origin", "*");
+        verify(response).setStatus(HttpServletResponse.SC_OK);
+    }
 }
 
 
