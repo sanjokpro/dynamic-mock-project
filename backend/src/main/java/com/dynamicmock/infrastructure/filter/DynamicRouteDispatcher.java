@@ -245,17 +245,19 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             }
 
             Map<String, String> finalResponseHeaders = resolveFinalResponseHeaders(route, scriptContext);
+            String requestEventId = java.util.UUID.randomUUID().toString();
 
             // Trigger async webhook if configured
             if (scriptContext.getWebhook() != null && !scriptContext.getWebhook().isEmpty()) {
                 try {
-                    asyncWebhookService.triggerWebhook(route.getId(), scriptContext.getWebhook());
+                    asyncWebhookService.triggerWebhook(route.getId(), requestEventId, scriptContext.getWebhook());
                 } catch (Exception e) {
                     log.error("Failed to enqueue async webhook: {}", e.getMessage(), e);
                 }
             }
 
             trafficLogger.log(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.builder()
+                .id(requestEventId)
                 .protocol("HTTP")
                 .resourceId(route.getId())
                 .method(method)

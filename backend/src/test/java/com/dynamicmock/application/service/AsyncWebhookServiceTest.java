@@ -122,4 +122,48 @@ class AsyncWebhookServiceTest {
         assertEquals(500, logCaptor.getValue().getStatus());
         assertEquals("WEBHOOK", logCaptor.getValue().getProtocol());
     }
+
+    @Test
+    void triggerWebhook_shouldCorrelateParentEventIdAndFollowRedirectsWithFullTelemetry() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("url", "http://localhost:8080/mock/return-url-redirector");
+        config.put("method", "GET");
+
+        org.springframework.http.HttpHeaders redirectHeaders = new org.springframework.http.HttpHeaders();
+        redirectHeaders.setLocation(java.net.URI.create("http://localhost:8080/mock/return-url-final-destination"));
+
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/return-url-redirector"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class)
+        )).thenReturn(new ResponseEntity<>("", redirectHeaders, org.springframework.http.HttpStatus.FOUND));
+
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/return-url-final-destination"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class)
+        )).thenReturn(ResponseEntity.ok("{\"webhookRedirected\":true}"));
+
+        asyncWebhookService.triggerWebhook("route-123", "parent-event-uuid-999", config);
+
+        ArgumentCaptor<TrafficLogger.ExecutionEvent> logCaptor = ArgumentCaptor.forClass(TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(logCaptor.capture());
+
+        TrafficLogger.ExecutionEvent logged = logCaptor.getValue();
+        assertEquals("WEBHOOK", logged.getProtocol());
+        assertEquals("route-123", logged.getResourceId());
+        assertEquals("parent-event-uuid-999", logged.getParentEventId());
+        assertEquals(200, logged.getStatus());
+        assertEquals("{\"webhookRedirected\":true}", logged.getResponseBody());
+        org.junit.jupiter.api.Assertions.assertNotNull(logged.getRedirectChain());
+        assertEquals(2, logged.getRedirectChain().size());
+        assertEquals(302, logged.getRedirectChain().get(0).getStatus());
+        assertEquals(200, logged.getRedirectChain().get(1).getStatus());
+        org.junit.jupiter.api.Assertions.assertNotNull(logged.getWebhookDetail());
+        assertEquals("parent-event-uuid-999", logged.getWebhookDetail().getParentEventId());
+        assertEquals("http://localhost:8080/mock/return-url-redirector", logged.getWebhookDetail().getTargetUrl());
+        assertEquals("http://localhost:8080/mock/return-url-final-destination", logged.getWebhookDetail().getFinalUrl());
+    }
 }

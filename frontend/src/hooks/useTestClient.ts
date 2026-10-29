@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { RedirectHop } from '@/types';
 
 const API_URL = '/test-client/execute';
 
@@ -16,6 +17,7 @@ export interface TestResponse {
   headers: Record<string, string>;
   body: string;
   durationMs: number;
+  redirectChain?: RedirectHop[];
 }
 
 export function useTestClient() {
