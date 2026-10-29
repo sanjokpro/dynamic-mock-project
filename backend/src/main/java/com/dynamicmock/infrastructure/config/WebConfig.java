@@ -29,12 +29,18 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        // Sandboxed Origin: null and cross-origin access for simulation endpoints
+        registry.addMapping("/mock/**")
+            .allowedOriginPatterns("*")
+            .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD")
+            .allowedHeaders("*");
+
         String[] origins = java.util.Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toArray(String[]::new);
 
-        registry.addMapping("/**")
+        registry.addMapping("/api/**")
             .allowedOriginPatterns(origins.length > 0 ? origins : new String[]{"http://localhost:3000"})
             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             .allowedHeaders("*")
@@ -42,4 +48,3 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
 }
-
