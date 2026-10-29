@@ -1,22 +1,63 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Copy, Calendar, Clock, CheckSquare, Activity, Trash2 } from 'lucide-react';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useRoutes } from '@/hooks/useRoutes';
 import { cn } from '@/lib/utils';
 import { useDialogs } from '@/context/DialogContext';
 import { toast } from 'sonner';
+import { HtmlPreviewFrame } from './HtmlPreviewFrame';
 
 interface RouteDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+type TemplateViewTab = 'source' | 'preview';
+
+/**
+ * Detects whether a route definition serves HTML, based on its configured
+ * Content-Type response header or the shape of its response template.
+ */
+export function isHtmlRoute(
+  responseHeaders?: Record<string, string>,
+  responseTemplate?: string
+): boolean {
+  if (responseHeaders) {
+    for (const [key, val] of Object.entries(responseHeaders)) {
+      if (key.toLowerCase().trim() === 'content-type' && typeof val === 'string') {
+        const lower = val.toLowerCase();
+        if (lower.includes('text/html') || lower.includes('application/xhtml+xml')) {
+          return true;
+        }
+      }
+    }
+  }
+  if (typeof responseTemplate === 'string') {
+    const trimmed = responseTemplate.trim().toLowerCase();
+    if (trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function RouteDrawer({ isOpen, onClose }: RouteDrawerProps) {
   const { activeRoute, setActiveRoute, setDrawerOpen } = useWorkspace();
   const { updateRoute, createRoute, deleteRoute } = useRoutes();
   const { confirm } = useDialogs();
+  const [templateTab, setTemplateTab] = useState<TemplateViewTab>('source');
+
+  const isHtml = useMemo(
+    () => isHtmlRoute(activeRoute?.responseHeaders, activeRoute?.responseTemplate),
+    [activeRoute?.responseHeaders, activeRoute?.responseTemplate]
+  );
+
+  // Always reset to the passive Source view when the drawer opens or the route changes
+  useEffect(() => {
+    setTemplateTab('source');
+  }, [activeRoute?.id, isOpen]);
 
   const [localActive, setLocalActive] = useState(false);
   const [localDelayMs, setLocalDelayMs] = useState(0);
@@ -233,13 +274,65 @@ export function RouteDrawer({ isOpen, onClose }: RouteDrawerProps) {
 
           {/* Response Preview */}
           {activeRoute?.responseTemplate && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Response Preview</label>
-              <pre className="bg-code-bg text-code-foreground rounded-md p-3 text-xs font-mono overflow-x-auto max-h-32 custom-scrollbar">
-                {activeRoute.responseTemplate.length > 300
-                  ? activeRoute.responseTemplate.slice(0, 300) + '...'
-                  : activeRoute.responseTemplate}
-              </pre>
+            <div className="space-y-1.5" data-testid="route-response-preview">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Response Preview</label>
+                {isHtml && (
+                  <div className="inline-flex rounded-md border border-border overflow-hidden text-[11px]" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={templateTab === 'source'}
+                      onClick={() => setTemplateTab('source')}
+                      data-testid="route-template-tab-source"
+                      className={cn(
+                        'px-2.5 py-0.5 font-medium transition-colors cursor-pointer',
+                        templateTab === 'source'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      )}
+                    >
+                      Source
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={templateTab === 'preview'}
+                      onClick={() => setTemplateTab('preview')}
+                      data-testid="route-template-tab-preview"
+                      className={cn(
+                        'px-2.5 py-0.5 font-medium transition-colors cursor-pointer border-l border-border',
+                        templateTab === 'preview'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      )}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isHtml && templateTab === 'preview' ? (
+                <div className="h-64" data-testid="route-template-preview">
+                  <HtmlPreviewFrame
+                    html={activeRoute.responseTemplate}
+                    mockPath={activeRoute.path}
+                    interactive={false}
+                    compact
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground italic">
+                    Static template preview — scripts disabled. Execute in Test Client to run Post-Scripts.
+                  </p>
+                </div>
+              ) : (
+                <pre
+                  className="bg-code-bg text-code-foreground rounded-md p-3 text-xs font-mono overflow-auto max-h-60 whitespace-pre-wrap break-all custom-scrollbar"
+                  data-testid="route-template-source"
+                >
+                  {activeRoute.responseTemplate}
+                </pre>
+              )}
             </div>
           )}
         </div>
