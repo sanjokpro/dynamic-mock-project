@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getHttpStatusPhrase, formatHttpStatus, formatPayloadSize } from './httpStatus';
+import { getHttpStatusPhrase, formatHttpStatus, formatPayloadSize, formatTimestampWithMs } from './httpStatus';
 
 describe('httpStatus helper', () => {
   it('maps standard status codes to correct reason phrases', () => {
@@ -28,5 +28,17 @@ describe('httpStatus helper', () => {
     expect(formatPayloadSize(1024)).toBe('1.0 KB');
     expect(formatPayloadSize(2048)).toBe('2.0 KB');
     expect(formatPayloadSize(1048576)).toBe('1.0 MB');
+  });
+
+  it('formats dates into "HH:mm:ss.SSS" millisecond precision string consistently', () => {
+    const testDate = new Date(2026, 9, 29, 13, 1, 32, 421);
+    expect(formatTimestampWithMs(testDate)).toBe('13:01:32.421');
+
+    const testDate2 = new Date(2026, 9, 29, 9, 5, 8, 7);
+    expect(formatTimestampWithMs(testDate2)).toBe('09:05:08.007');
+
+    expect(formatTimestampWithMs(null)).toBe('');
+    expect(formatTimestampWithMs(undefined)).toBe('');
+    expect(formatTimestampWithMs('invalid-date')).toBe('');
   });
 });

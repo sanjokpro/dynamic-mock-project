@@ -388,6 +388,17 @@ test.describe('Release v0.6.1 - Interactive Simulation Experience E2E', () => {
     const durationText = await durationDisplay.textContent();
     expect(durationText).toMatch(/\d+(\.\d+)?\s*ms/);
 
+    // Verify millisecond timestamp format ([HH:mm:ss.SSS])
+    const timeDisplay = page.locator('[data-testid="traffic-row-time"]').first();
+    const timeText = await timeDisplay.textContent();
+    expect(timeText).toMatch(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/);
+
+    // Verify expanded Request ID visibility in collapsed row (Req: <uuid>...)
+    const matchDisplay = page.locator('[data-testid="traffic-row-match"]').first();
+    const matchText = await matchDisplay.textContent();
+    expect(matchText).toMatch(/^Req:\s+[0-9a-fA-F-]+/);
+    await expect(page.locator('[data-testid^="traffic-row-copy-id-"]').first()).toBeAttached();
+
     // Expand the traffic event row
     const rowHeader = page.locator('[data-testid^="traffic-row-header-"]').first();
     await rowHeader.click();

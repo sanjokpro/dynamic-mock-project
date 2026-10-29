@@ -9,6 +9,7 @@ import { useTraffic } from '@/hooks/useTraffic';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { ExecutionEvent } from '@/types';
 import { TrafficEventRow } from './TrafficEventRow';
+import { formatTimestampWithMs } from '@/lib/httpStatus';
 import { cn } from '@/lib/utils';
 
 type Tab = 'console' | 'history';
@@ -338,7 +339,7 @@ function HistoryTab({ items, onClear }: { items: HistoryItem[]; onClear: () => v
                   <td className="px-3 py-1.5 text-right text-muted-foreground tabular-nums text-[11px]">
                     <span className="flex items-center gap-1 justify-end">
                       <Clock className="h-2.5 w-2.5" />
-                      {item.timestamp.toLocaleTimeString([], { hour12: false })}
+                      {formatTimestampWithMs(item.timestamp)}
                     </span>
                   </td>
                   <td className="px-3 py-1.5 text-right text-muted-foreground tabular-nums">{item.durationMs}ms</td>

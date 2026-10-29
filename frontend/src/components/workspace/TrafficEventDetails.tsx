@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ExecutionEvent } from '@/types';
 import { copyToClipboard } from '@/lib/curl';
+import { formatTimestampWithMs } from '@/lib/httpStatus';
 import { HtmlPreviewFrame } from './HtmlPreviewFrame';
 import { RedirectChainBanner } from './RedirectChainBanner';
 import { isHtmlResponse } from './ResponsePanel';
@@ -123,7 +124,7 @@ export function TrafficEventDetails({ event }: TrafficEventDetailsProps) {
               Match: <strong className="text-foreground">{event.matchName}</strong>
             </span>
           )}
-          <span>{new Date(event.timestamp).toLocaleString()}</span>
+          <span>{formatTimestampWithMs(event.timestamp)} ({new Date(event.timestamp).toLocaleDateString()})</span>
         </div>
       </div>
 

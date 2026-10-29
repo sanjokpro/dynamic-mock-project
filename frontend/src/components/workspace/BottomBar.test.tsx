@@ -119,12 +119,21 @@ describe('BottomBar & Console Explorer (Phase 6)', () => {
     expect(row1.textContent).toContain('126.43ms');
     expect(row1.textContent).toContain('3.2 KB');
 
+    // Millisecond timestamp format [HH:mm:ss.SSS]
+    const timeEls = screen.getAllByTestId('traffic-row-time');
+    expect(timeEls[0].textContent).toMatch(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/);
+
+    // Expanded Request ID visibility in collapsed row
+    const matchEl = screen.getAllByTestId('traffic-row-match')[0];
+    expect(matchEl.textContent).toContain('Req: req-uuid-1111-2222');
+
     // WEBHOOK Row
     const rowWebhook = screen.getByTestId(`traffic-event-row-${mockWebhookEvent.id}`);
     expect(rowWebhook).toBeTruthy();
     expect(rowWebhook.textContent).toContain('WEBHOOK');
     expect(rowWebhook.textContent).toContain('POST');
     expect(rowWebhook.textContent).toContain('http://localhost:8080/mock/return-url-redirector');
+    expect(timeEls[1].textContent).toMatch(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/);
   });
 
   it('2. expands row upon click and displays full Request ID, Route ID, Parent Event ID, and copy buttons', () => {
@@ -245,5 +254,28 @@ describe('BottomBar & Console Explorer (Phase 6)', () => {
     expect(historyView.textContent).toContain('/mobile-banking-login');
     expect(historyView.textContent).toContain('200');
     expect(historyView.textContent).toContain('14.5ms');
+  });
+
+  it('8. provides collapsed-row ID copy button that copies Request ID without expanding the row', () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(<BottomBar isOpen={true} onToggle={vi.fn()} />);
+
+    // Row is initially collapsed
+    expect(screen.queryByTestId(`traffic-event-details-${mockEvent1.id}`)).toBeNull();
+
+    // Click copy button on collapsed row
+    const copyBtn = screen.getByTestId(`traffic-row-copy-id-${mockEvent1.id}`);
+    expect(copyBtn).toBeTruthy();
+    fireEvent.click(copyBtn);
+
+    expect(writeTextMock).toHaveBeenCalledWith(mockEvent1.id);
+    // Row remains collapsed (e.stopPropagation prevented toggle)
+    expect(screen.queryByTestId(`traffic-event-details-${mockEvent1.id}`)).toBeNull();
   });
 });

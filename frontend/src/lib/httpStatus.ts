@@ -61,3 +61,23 @@ export function formatPayloadSize(byteLength: number): string {
   }
   return `${(byteLength / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * Formats a date/timestamp into "HH:mm:ss.SSS" string with millisecond precision.
+ * Consistently used in the Console Explorer for high-fidelity event telemetry.
+ */
+export function formatTimestampWithMs(timestamp?: string | number | Date | null): string {
+  if (!timestamp) return '';
+  try {
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return '';
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const millis = String(d.getMilliseconds()).padStart(3, '0');
+    return `${hours}:${minutes}:${seconds}.${millis}`;
+  } catch {
+    return '';
+  }
+}
+

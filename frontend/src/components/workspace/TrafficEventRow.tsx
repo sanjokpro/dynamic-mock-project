@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Copy, Check } from 'lucide-react';
 import { ExecutionEvent } from '@/types';
-import { formatPayloadSize } from '@/lib/httpStatus';
+import { formatPayloadSize, formatTimestampWithMs } from '@/lib/httpStatus';
 import { TrafficEventDetails } from './TrafficEventDetails';
 import { cn } from '@/lib/utils';
 
@@ -57,13 +57,33 @@ export function TrafficEventRow({ event, isExpanded, onToggle }: TrafficEventRow
     return '';
   }, [event.payloadSizeBytes]);
 
+  const [copiedId, setCopiedId] = React.useState(false);
+
   const timestampStr = React.useMemo(() => {
-    try {
-      return new Date(event.timestamp).toLocaleTimeString([], { hour12: false });
-    } catch {
-      return '';
-    }
+    return formatTimestampWithMs(event.timestamp);
   }, [event.timestamp]);
+
+  const displayId = React.useMemo(() => {
+    if (event.id) {
+      const truncated = event.id.length > 18 ? `${event.id.slice(0, 18)}...` : event.id;
+      return `Req: ${truncated}`;
+    }
+    if (event.resourceId) {
+      const truncated = event.resourceId.length > 18 ? `${event.resourceId.slice(0, 18)}...` : event.resourceId;
+      return `Route: ${truncated}`;
+    }
+    return event.matchName || '';
+  }, [event.id, event.resourceId, event.matchName]);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const idToCopy = event.id || event.resourceId || '';
+    if (idToCopy) {
+      navigator.clipboard.writeText(idToCopy);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 1500);
+    }
+  };
 
   return (
     <div
@@ -121,13 +141,28 @@ export function TrafficEventRow({ event, isExpanded, onToggle }: TrafficEventRow
           )}
         </div>
 
-        {/* Route / Match Info */}
+        {/* Request ID / Route Info */}
         <span
-          className="text-muted-foreground text-[10px] truncate max-w-[140px] hidden md:inline"
-          title={event.resourceId ? `Route ID: ${event.resourceId}` : event.matchName}
+          className="text-muted-foreground text-[10px] truncate max-w-[200px] lg:max-w-[280px] hidden md:inline-flex items-center gap-1 hover:text-foreground transition-colors group/reqId"
+          title={
+            event.id
+              ? `Request ID: ${event.id}${event.resourceId ? `\nRoute ID: ${event.resourceId}` : ''}\nClick to copy`
+              : (event.resourceId ? `Route ID: ${event.resourceId}` : event.matchName || '')
+          }
           data-testid="traffic-row-match"
         >
-          {event.resourceId ? `ID: ${event.resourceId.slice(0, 8)}...` : event.matchName || ''}
+          <span className="truncate">{displayId}</span>
+          {(event.id || event.resourceId) && (
+            <button
+              type="button"
+              onClick={handleCopyId}
+              className="opacity-0 group-hover/reqId:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              title="Copy ID"
+              data-testid={`traffic-row-copy-id-${event.id}`}
+            >
+              {copiedId ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5" />}
+            </button>
+          )}
         </span>
 
         {/* Status Badge */}
