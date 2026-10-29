@@ -1,15 +1,39 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { Clock, Database, Ghost, Copy, Download, Check, Search, X, Terminal } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { Clock, Database, Ghost, Copy, Download, Check, Search, X, Terminal, Eye } from 'lucide-react';
 import { useWorkspace } from '@/context/WorkspaceContext';
 import { useTheme } from '@/context/ThemeContext';
 import { formatHttpStatus, formatPayloadSize } from '@/lib/httpStatus';
 import { generateCurlCommand, copyToClipboard } from '@/lib/curl';
+import { HtmlPreviewFrame } from './HtmlPreviewFrame';
+import { RedirectChainBanner } from './RedirectChainBanner';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type ResponseTab = 'body' | 'headers';
+type ResponseTab = 'preview' | 'body' | 'headers';
+
+export function isHtmlResponse(headers?: Record<string, string>, body?: unknown): boolean {
+  if (headers) {
+    for (const [key, val] of Object.entries(headers)) {
+      if (key.toLowerCase().trim() === 'content-type' && typeof val === 'string') {
+        const lowerVal = val.toLowerCase();
+        if (lowerVal.includes('text/html') || lowerVal.includes('application/xhtml+xml')) {
+          return true;
+        }
+      }
+    }
+  }
+
+  if (typeof body === 'string') {
+    const trimmed = body.trim().toLowerCase();
+    if (trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html')) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 export function ResponsePanel() {
   const { lastResponse, activeRoute, activeEnvironment } = useWorkspace();
@@ -18,6 +42,21 @@ export function ResponsePanel() {
   const [copied, setCopied] = useState(false);
   const [copiedCurl, setCopiedCurl] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const isHtml = useMemo(
+    () => isHtmlResponse(lastResponse?.headers, lastResponse?.body),
+    [lastResponse]
+  );
+
+  // Automatically select 'preview' when an HTML response arrives, or 'body' for non-HTML responses
+  useEffect(() => {
+    if (!lastResponse) return;
+    if (isHtml) {
+      setActiveTab('preview');
+    } else {
+      setActiveTab('body');
+    }
+  }, [lastResponse, isHtml]);
 
   const handleCopy = useCallback(() => {
     if (!lastResponse) return;
@@ -97,15 +136,17 @@ export function ResponsePanel() {
     const text = typeof lastResponse.body === 'string'
       ? lastResponse.body
       : JSON.stringify(lastResponse.body, null, 2);
-    const blob = new Blob([text], { type: 'application/json' });
+    const filename = isHtml ? 'response.html' : 'response.json';
+    const mimeType = isHtml ? 'text/html' : 'application/json';
+    const blob = new Blob([text], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'response.json';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Downloaded response.json');
-  }, [lastResponse]);
+    toast.success(`Downloaded ${filename}`);
+  }, [lastResponse, isHtml]);
 
   const rawBody = lastResponse?.body;
   let formattedBody = '';
@@ -128,6 +169,41 @@ export function ResponsePanel() {
     }
   }
   const bodyText = formattedBody;
+
+  const mockPath = useMemo(() => {
+    const rawPath = activeRoute?.path || '/';
+    return rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  }, [activeRoute?.path]);
+
+  const resolvedTargetUrl = useMemo(() => {
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
+        ? window.location.origin
+        : 'http://localhost:8080';
+
+    let rawUrl = `{{BASE_URL}}${mockPath}`;
+    if (typeof window !== 'undefined' && activeRoute?.id) {
+      try {
+        const saved = localStorage.getItem(`dynamicmock:test_draft:${activeRoute.id}`);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          if (draft?.url && typeof draft.url === 'string') {
+            rawUrl = draft.url;
+          }
+        }
+      } catch {
+        // Ignore draft read failure
+      }
+    }
+
+    const vars = activeEnvironment?.variables || {};
+    let resolved = rawUrl;
+    for (const [k, v] of Object.entries(vars)) {
+      resolved = resolved.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v);
+    }
+    resolved = resolved.replace(/\{\{BASE_URL\}\}/g, `${origin}/mock`);
+    return resolved;
+  }, [activeRoute?.id, mockPath, activeEnvironment?.variables]);
 
   const matchCount = useMemo(() => {
     if (!searchQuery.trim() || !bodyText) return 0;
@@ -219,6 +295,7 @@ export function ResponsePanel() {
             onClick={handleDownload}
             className="flex items-center gap-1 px-2 py-1 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             title="Download response"
+            data-testid="response-download-btn"
           >
             <Download className="h-3 w-3" />
             <span className="hidden sm:inline">Download</span>
@@ -226,11 +303,30 @@ export function ResponsePanel() {
         </div>
       </div>
 
+      {/* Redirect Chain Banner (hidden automatically when no redirects occurred) */}
+      <RedirectChainBanner redirectChain={lastResponse.redirectChain} />
+
       {/* Tabs & Search Toolbar */}
       <div className="flex items-center justify-between border-b text-xs px-2 bg-muted/10 shrink-0">
         <div className="flex">
+          {isHtml && (
+            <button
+              onClick={() => setActiveTab('preview')}
+              data-testid="response-tab-preview"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 transition-colors cursor-pointer font-medium border-b-2",
+                activeTab === 'preview'
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Eye className="h-3 w-3" />
+              <span>Preview</span>
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('body')}
+            data-testid="response-tab-body"
             className={cn(
               "px-3 py-1.5 transition-colors cursor-pointer font-medium border-b-2",
               activeTab === 'body' 
@@ -242,6 +338,7 @@ export function ResponsePanel() {
           </button>
           <button
             onClick={() => setActiveTab('headers')}
+            data-testid="response-tab-headers"
             className={cn(
               "px-3 py-1.5 transition-colors cursor-pointer font-medium border-b-2",
               activeTab === 'headers' 
@@ -285,7 +382,16 @@ export function ResponsePanel() {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'body' ? (
+        {activeTab === 'preview' && isHtml ? (
+          <div className="h-full w-full p-2 overflow-hidden">
+            <HtmlPreviewFrame
+              html={bodyText}
+              targetUrl={resolvedTargetUrl}
+              mockPath={mockPath}
+              interactive={true}
+            />
+          </div>
+        ) : activeTab === 'body' ? (
           <div className="h-full overflow-auto p-3 custom-scrollbar">
             <JsonHighlighter json={bodyText} theme={theme} searchQuery={searchQuery} />
           </div>
