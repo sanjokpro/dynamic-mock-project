@@ -134,3 +134,4 @@ export function RedirectChainBanner({ redirectChain, className }: RedirectChainB
     </div>
   );
 }
+

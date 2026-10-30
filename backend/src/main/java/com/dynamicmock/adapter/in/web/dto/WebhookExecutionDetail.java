@@ -25,3 +25,4 @@ public class WebhookExecutionDetail {
     private String responseBody;
     private String errorMessage;
 }
+

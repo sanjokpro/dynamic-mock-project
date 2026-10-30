@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { parseQueryParamsFromUrl, buildUrlWithQueryParams } from './RequestPanel';
 
 describe('Test Request Draft Persistence (BUG 2 fix)', () => {
   beforeEach(() => {
@@ -70,5 +71,16 @@ describe('Test Request Draft Persistence (BUG 2 fix)', () => {
     expect(r2.requestHeaders['Route-2-Header']).toBe('val2');
     expect(r1.requestBodyType).toBe('json');
     expect(r2.requestBodyType).toBe('raw');
+  });
+
+  it('extracts and reconstructs URL query parameters (such as returnUrl) across save and relogin', () => {
+    const rawUrl = '{{BASE_URL}}/mobile-banking/login?returnUrl=http://localhost/mock/return-redirect';
+    const parsed = parseQueryParamsFromUrl(rawUrl);
+    expect(parsed).toEqual({
+      returnUrl: 'http://localhost/mock/return-redirect',
+    });
+
+    const reconstructed = buildUrlWithQueryParams('{{BASE_URL}}/mobile-banking/login', parsed);
+    expect(reconstructed).toBe(rawUrl);
   });
 });

@@ -18,6 +18,35 @@ import { generateCurlCommand, copyToClipboard } from '@/lib/curl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+export function parseQueryParamsFromUrl(rawUrl: string): Record<string, string> {
+  const qIdx = rawUrl.indexOf('?');
+  if (qIdx === -1) return {};
+  const queryString = rawUrl.slice(qIdx + 1);
+  if (!queryString.trim()) return {};
+  const params: Record<string, string> = {};
+  for (const pair of queryString.split('&')) {
+    if (!pair) continue;
+    const eqIdx = pair.indexOf('=');
+    if (eqIdx === -1) {
+      const k = pair.trim();
+      if (k) params[k] = '';
+    } else {
+      const k = pair.slice(0, eqIdx).trim();
+      const v = pair.slice(eqIdx + 1);
+      if (k) params[k] = v;
+    }
+  }
+  return params;
+}
+
+export function buildUrlWithQueryParams(basePathUrl: string, params?: Record<string, string>): string {
+  const basePart = basePathUrl.split('?')[0];
+  const entries = Object.entries(params || {}).filter(([k]) => k.trim() !== '');
+  if (entries.length === 0) return basePart;
+  const qs = entries.map(([k, v]) => (v !== '' ? `${k.trim()}=${v}` : k.trim())).join('&');
+  return `${basePart}?${qs}`;
+}
+
 export function RequestPanel() {
   const [viewMode, setViewMode] = useState<'test' | 'mock'>('test');
   const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
@@ -64,8 +93,8 @@ export function RequestPanel() {
 
     setMethod(activeRoute.method || 'GET');
     const activePath = activeRoute.path || '';
+    const baseUrlForPath = `{{BASE_URL}}${activePath.startsWith('/') ? activePath : '/' + activePath}`;
     setPath(activePath);
-    setUrl(`{{BASE_URL}}${activePath.startsWith('/') ? activePath : '/' + activePath}`);
     setResponseStatus(activeRoute.responseStatus || 200);
     setResponseTemplate(activeRoute.responseTemplate || '');
     setPreScript(activeRoute.preScript || '');
@@ -75,6 +104,7 @@ export function RequestPanel() {
 
     // Restore draft from localStorage
     let restoredDraft = false;
+    let restoredParams: Record<string, string> = activeRoute.queryParams || {};
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(`dynamicmock:test_draft:${activeRoute.id}`);
@@ -82,10 +112,14 @@ export function RequestPanel() {
           const draft = JSON.parse(saved);
           if (draft && typeof draft === 'object') {
             setRequestHeaders(draft.requestHeaders || {});
-            setQueryParams(draft.queryParams !== undefined ? draft.queryParams : (activeRoute.queryParams || {}));
+            const draftParams = draft.queryParams && Object.keys(draft.queryParams).length > 0
+              ? draft.queryParams
+              : (activeRoute.queryParams || {});
+            restoredParams = draftParams;
+            setQueryParams(draftParams);
             setRequestBodyType(draft.requestBodyType || 'none');
             setRequestBodyContent(draft.requestBodyContent || '');
-            
+
             // Backward-compatible headerRows restoration
             if (draft.headerRows && Array.isArray(draft.headerRows)) {
               setHeaderRows(draft.headerRows);
@@ -108,12 +142,14 @@ export function RequestPanel() {
     }
 
     if (!restoredDraft) {
-      setQueryParams(activeRoute.queryParams || {});
+      setQueryParams(restoredParams);
       setRequestHeaders({});
       setHeaderRows([]);
       setRequestBodyType('none');
       setRequestBodyContent('');
     }
+
+    setUrl(buildUrlWithQueryParams(baseUrlForPath, restoredParams));
 
     const timer = setTimeout(() => {
       isLoadedRef.current = true;
@@ -129,9 +165,13 @@ export function RequestPanel() {
 
     if (typeof window !== 'undefined') {
       try {
+        const effectiveParams = url.includes('?')
+          ? { ...queryParams, ...parseQueryParamsFromUrl(url) }
+          : queryParams;
         const draft = {
+          url,
           requestHeaders,
-          queryParams,
+          queryParams: effectiveParams,
           requestBodyType,
           requestBodyContent,
           headerRows,
@@ -142,15 +182,22 @@ export function RequestPanel() {
         console.warn('Failed to persist test request draft to localStorage', e);
       }
     }
-  }, [requestHeaders, queryParams, requestBodyType, requestBodyContent, headerRows, activeRoute?.id]);
+  }, [url, requestHeaders, queryParams, requestBodyType, requestBodyContent, headerRows, activeRoute?.id]);
 
   const handleSave = useCallback(async () => {
     if (!activeRoute) return;
     let effectivePath = path.split('?')[0].trim();
+    let effectiveQueryParams: Record<string, string> = { ...queryParams };
     if (url) {
       const clean = url.replace(/\{\{BASE_URL\}\}/g, '').split('?')[0].trim();
       if (clean) effectivePath = clean.startsWith('/') ? clean : '/' + clean;
+      if (url.includes('?')) {
+        effectiveQueryParams = parseQueryParamsFromUrl(url);
+      } else {
+        effectiveQueryParams = {};
+      }
     }
+    setQueryParams(effectiveQueryParams);
 
     const updatedRoute: Partial<MockRoute> & { id: string } = {
       id: activeRoute.id,
@@ -159,11 +206,11 @@ export function RequestPanel() {
       active: true,
       responseStatus,
       responseTemplate,
-      queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+      queryParams: effectiveQueryParams,
       responseHeaders: Object.keys(responseHeaders).length > 0 ? responseHeaders : undefined,
       matchers: (matchers.headers && Object.keys(matchers.headers).length > 0) ||
-                (matchers.queryParams && Object.keys(matchers.queryParams).length > 0) ||
-                (matchers.bodyMatchType && matchers.bodyMatchType !== 'none') ? matchers : {},
+        (matchers.queryParams && Object.keys(matchers.queryParams).length > 0) ||
+        (matchers.bodyMatchType && matchers.bodyMatchType !== 'none') ? matchers : {},
       preScript,
       postScript,
       scriptLanguage: 'js'
@@ -171,7 +218,26 @@ export function RequestPanel() {
 
     try {
       const saved = await updateRoute(updatedRoute);
+      const baseUrlForSaved = `{{BASE_URL}}${effectivePath.startsWith('/') ? effectivePath : '/' + effectivePath}`;
+      const savedFullUrl = buildUrlWithQueryParams(baseUrlForSaved, effectiveQueryParams);
+      if (typeof window !== 'undefined') {
+        try {
+          const draft = {
+            url: savedFullUrl,
+            requestHeaders,
+            queryParams: effectiveQueryParams,
+            requestBodyType,
+            requestBodyContent,
+            headerRows,
+            updatedAt: Date.now()
+          };
+          localStorage.setItem(`dynamicmock:test_draft:${activeRoute.id}`, JSON.stringify(draft));
+        } catch (e) {
+          console.warn('Failed to persist test request draft on save', e);
+        }
+      }
       setActiveRoute(saved);
+      setUrl(savedFullUrl);
       setIsSuccess(true);
       toast.success('Route saved successfully');
       setTimeout(() => setIsSuccess(false), 2000);
@@ -179,7 +245,7 @@ export function RequestPanel() {
       console.error('Failed to save route:', error);
       toast.error('Failed to save route');
     }
-  }, [activeRoute, method, path, url, responseStatus, responseTemplate, queryParams, responseHeaders, matchers, preScript, postScript, updateRoute, setActiveRoute]);
+  }, [activeRoute, method, path, url, responseStatus, responseTemplate, queryParams, requestHeaders, requestBodyType, requestBodyContent, headerRows, responseHeaders, matchers, preScript, postScript, updateRoute, setActiveRoute]);
 
   // Synchronize Content-Type header with selected Body Type (Postman-style)
   const syncContentTypeForBodyType = useCallback((
@@ -191,10 +257,10 @@ export function RequestPanel() {
       type === 'json'
         ? 'application/json'
         : type === 'form'
-        ? 'application/x-www-form-urlencoded'
-        : type === 'raw'
-        ? 'text/plain'
-        : null;
+          ? 'application/x-www-form-urlencoded'
+          : type === 'raw'
+            ? 'text/plain'
+            : null;
 
     // Filter out any existing Content-Type header (case-insensitive)
     const newHeaders: Record<string, string> = {};
@@ -450,6 +516,11 @@ export function RequestPanel() {
                 setUrl(val);
                 const clean = val.replace(/\{\{BASE_URL\}\}/g, '').split('?')[0].trim();
                 setPath(clean.startsWith('/') ? clean : (clean ? '/' + clean : '/'));
+                if (val.includes('?')) {
+                  setQueryParams(parseQueryParamsFromUrl(val));
+                } else {
+                  setQueryParams({});
+                }
               }}
               placeholder="{{BASE_URL}}/api/example"
               className="px-3 py-1.5 text-xs bg-transparent border-none focus:outline-none flex-1 font-mono min-w-0"
@@ -532,7 +603,10 @@ export function RequestPanel() {
         {viewMode === 'test' ? (
           <TestClientView
             queryParams={queryParams}
-            onQueryParamsChange={setQueryParams}
+            onQueryParamsChange={(newParams) => {
+              setQueryParams(newParams);
+              setUrl((prevUrl) => buildUrlWithQueryParams(prevUrl, newParams));
+            }}
             requestHeaders={requestHeaders}
             headerRows={headerRows}
             onRequestHeadersChange={(headers, rows) => {

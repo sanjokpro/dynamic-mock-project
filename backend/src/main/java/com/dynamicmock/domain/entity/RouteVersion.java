@@ -37,6 +37,7 @@ public class RouteVersion {
     private String path;
     private String method;
     private Map<String, Object> matchers;
+    private Map<String, String> queryParams;
     private String responseTemplate;
     private Integer responseStatus;
     private Map<String, String> responseHeaders;
@@ -71,6 +72,7 @@ public class RouteVersion {
             .path(route.getPath())
             .method(route.getMethod())
             .matchers(route.getMatchers())
+            .queryParams(route.getQueryParams())
             .responseTemplate(route.getResponseTemplate())
             .responseStatus(route.getResponseStatus())
             .responseHeaders(route.getResponseHeaders())
@@ -91,6 +93,7 @@ public class RouteVersion {
         route.setPath(this.path);
         route.setMethod(this.method);
         route.setMatchers(this.matchers);
+        route.setQueryParams(this.queryParams);
         route.setResponseTemplate(this.responseTemplate);
         route.setResponseStatus(this.responseStatus);
         route.setResponseHeaders(this.responseHeaders);

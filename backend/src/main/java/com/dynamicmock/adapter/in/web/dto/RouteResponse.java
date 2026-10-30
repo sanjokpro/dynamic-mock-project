@@ -25,6 +25,7 @@ public class RouteResponse {
     private String path;
     private String method;
     private Map<String, Object> matchers;
+    private Map<String, String> queryParams;
     private String responseTemplate;
     private Integer responseStatus;
     private Map<String, String> responseHeaders;
@@ -44,6 +45,7 @@ public class RouteResponse {
                 .path(route.getPath())
                 .method(route.getMethod())
                 .matchers(route.getMatchers())
+                .queryParams(route.getQueryParams())
                 .responseTemplate(route.getResponseTemplate())
                 .responseStatus(route.getResponseStatus())
                 .responseHeaders(route.getResponseHeaders())

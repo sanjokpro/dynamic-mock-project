@@ -17,3 +17,4 @@ public class RedirectHop {
     private String location;
     private double durationMs;
 }
+

@@ -181,3 +181,4 @@ export function buildSandboxedSrcDoc(rawHtml: string, options?: HtmlPreviewConte
   // Fallback for HTML fragments or plain text served as text/html
   return `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8" />\n${injectionBlock}\n</head>\n<body>\n${content}\n</body>\n</html>`;
 }
+

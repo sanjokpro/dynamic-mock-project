@@ -65,8 +65,8 @@ export function Sidebar() {
   const filteredRoutes = useMemo(() => {
     if (!searchQuery.trim()) return routes;
     const q = searchQuery.toLowerCase();
-    return routes.filter(r => 
-      r.name?.toLowerCase().includes(q) || 
+    return routes.filter(r =>
+      r.name?.toLowerCase().includes(q) ||
       r.path?.toLowerCase().includes(q) ||
       r.method?.toLowerCase().includes(q)
     );
@@ -97,8 +97,8 @@ export function Sidebar() {
   };
 
   const handleDeleteCollection = async (id: string, name: string) => {
-    const confirmed = await confirm({ 
-      title: 'Delete Collection', 
+    const confirmed = await confirm({
+      title: 'Delete Collection',
       message: `Are you sure you want to delete the collection "${name}"?`,
       confirmText: 'Delete'
     });
@@ -153,7 +153,7 @@ export function Sidebar() {
   const handleMoveRoute = async (targetCollectionId: string) => {
     if (!moveRouteMode) return;
     const { sourceCollection, item } = moveRouteMode;
-    
+
     if (sourceCollection.id === targetCollectionId) {
       setMoveRouteMode(null);
       return;
@@ -178,16 +178,20 @@ export function Sidebar() {
     const name = await prompt({ title: 'New Route', placeholder: 'Route Name' });
     if (name) {
       try {
-        const newRoute = await createRoute({ name, method: 'GET', path: '/new-path', protocol: 'HTTP' });
-        if (newRoute && collectionId) {
-          await addItemToCollection({
-            collectionId,
-            item: {
-              protocol: 'HTTP',
-              resourceId: newRoute.id,
-              name: name
-            }
-          });
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'new-path';
+        const newRoute = await createRoute({ name, method: 'GET', path: `/${slug}`, protocol: 'HTTP' });
+        if (newRoute) {
+          setActiveRoute(newRoute);
+          if (collectionId) {
+            await addItemToCollection({
+              collectionId,
+              item: {
+                protocol: 'HTTP',
+                resourceId: newRoute.id,
+                name: name
+              }
+            });
+          }
         }
         toast.success('Route created');
       } catch (err: any) {
@@ -209,30 +213,30 @@ export function Sidebar() {
       <div className="p-3 border-b border-sidebar-border">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-          <input 
+          <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search collections..." 
+            placeholder="Search collections..."
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary outline-none"
           />
         </div>
       </div>
-      
+
       {/* View Toggle */}
       <div className="flex p-2 gap-1 border-b border-sidebar-border bg-muted/20">
-        <button 
+        <button
           onClick={() => setActiveView('routes')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-md transition-colors", 
+            "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-md transition-colors",
             activeView === 'routes' ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           )}
         >
           <Server className="h-3.5 w-3.5" /> Routes
         </button>
-        <button 
+        <button
           onClick={() => setActiveView('scenarios')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-md transition-colors", 
+            "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-md transition-colors",
             activeView === 'scenarios' ? "bg-background shadow-sm text-foreground font-medium" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           )}
         >
@@ -276,7 +280,7 @@ export function Sidebar() {
             <span>New</span>
           </button>
         </div>
-        
+
         {isCollectionsLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -357,8 +361,8 @@ export function Sidebar() {
                               onClick={() => handleSelectRoute(item.resourceId)}
                               className={cn(
                                 "flex items-center gap-2 flex-1 px-2 py-1 text-xs rounded-sm transition-colors text-left",
-                                activeRoute?.id === item.resourceId 
-                                  ? "bg-accent text-foreground" 
+                                activeRoute?.id === item.resourceId
+                                  ? "bg-accent text-foreground"
                                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                               )}
                             >
@@ -372,14 +376,14 @@ export function Sidebar() {
                               <span className="truncate">{item.name}</span>
                             </button>
                             <div className="flex items-center opacity-0 group-hover/item:opacity-100 pr-1">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); setMoveRouteMode({ sourceCollection: collection, item }); }} 
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setMoveRouteMode({ sourceCollection: collection, item }); }}
                                 className="p-0.5 text-muted-foreground hover:text-foreground rounded" title="Move Route"
                               >
                                 <Folder className="h-3 w-3" />
                               </button>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleRemoveItem(collection, item.id); }} 
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRemoveItem(collection, item.id); }}
                                 className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Remove from Collection"
                               >
                                 <X className="h-3 w-3" />
@@ -440,7 +444,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="p-2 border-t border-sidebar-border flex items-center justify-between bg-sidebar-bg">
-        <button 
+        <button
           onClick={handleCreateCollection}
           className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
         >
@@ -479,7 +483,7 @@ export function Sidebar() {
               ))}
             </div>
             <div className="flex justify-end mt-2">
-              <button 
+              <button
                 onClick={() => setMoveRouteMode(null)}
                 className="px-3 py-1.5 text-xs font-medium bg-accent text-foreground rounded-md hover:bg-accent/80"
               >

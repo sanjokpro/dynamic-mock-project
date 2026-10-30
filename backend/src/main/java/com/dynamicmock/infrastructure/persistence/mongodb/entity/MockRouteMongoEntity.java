@@ -30,6 +30,7 @@ public class MockRouteMongoEntity {
     private String method;
     
     private Map<String, Object> matchers;
+    private Map<String, String> queryParams;
     
     private String responseTemplate;
     private Integer responseStatus;
