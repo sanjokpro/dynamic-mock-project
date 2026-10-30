@@ -5,6 +5,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.1] — Interactive Simulation Experience (2026-10-30)
+
+### Added
+
+#### Interactive HTML Preview & Route Inspection
+- **Sandboxed HTML Preview (`HtmlPreviewFrame`)** — Hardware-grade isolated preview rendering engine for HTML responses (`text/html`, `application/xhtml+xml`) using in-memory `srcdoc` DOM injection.
+- **Zero Double Execution Guarantee** — Renders pre-captured execution response bodies strictly in memory without re-executing GET or POST requests against mock routes or upstream backends upon preview mount.
+- **Dynamic Content Sizing** — Iframe auto-resizing via `MutationObserver` and postMessage document height signaling to eliminate internal scrollbars for responsive layouts.
+- **Surgical URL Normalization Shim (`htmlPreviewShim`)** — Injects `<base>` targeting the mock workspace base URL, attaches `window.__DYNAMIC_MOCK_CONTEXT__`, and intercepts relative hyperlinks and form actions (`/mock/...`) to preserve preview continuity without mutating native browser APIs.
+- **Route Details Dual Modes (`RouteDrawer`)** — Added `[Source]` and `[Preview]` tabs defaulting to `Source` view. The `Source` tab displays full raw template strings with syntax highlighting and horizontal scroll (no 300-char truncation); the `Preview` tab renders a static mock preview in a script-disabled sandbox (`sandbox=""`).
+- **ResponsePanel Tab Switching** — Dynamic tab bar (`Preview | Body | Headers (N)`) defaulting to `Preview` whenever HTML response headers or HTML doctype/tags are detected, with graceful fallback to `Body | Headers (N)` for JSON, XML, or plain text.
+- **HTML Download Support** — Direct `.html` export action button (`response.html`) in both `ResponsePanel` preview header and `RouteDrawer` preview mode.
+
+#### Interactive Traffic Console Explorer
+- **Interactive Filtering & Full-Text Search** — Real-time search across HTTP method, URL path, status code, response time, request ID, route ID, and query parameters.
+- **Sub-Second Precision Event Timestamps** — Standardized event timestamps rendered with millisecond precision in `[HH:mm:ss.SSS]` format (e.g. `[13:01:32.421]`) alongside sub-millisecond execution duration metrics (e.g. `33.41ms`).
+- **Expanded Request ID & Route ID Context** — Request IDs display with 18+ characters of context in collapsed rows (`Req: 1d72f8be-f1d2...`) and full 36-character UUIDs in detail panels, complete with one-click clipboard copy. Full Route IDs are similarly exposed in metadata headers.
+- **Decoded Query Parameter Table** — Structured key-value breakdown table displaying parsed query strings with copy controls.
+- **Deep Payload & Header Inspection** — Formatted JSON, XML, and plain-text body views for both incoming requests and outgoing responses, paired with complete HTTP header tables.
+- **Expandable Accordion Rows** — Collapsible rows revealing detail tabs: `Query Parameters`, `Headers`, `Payload`, `Redirects`, `Webhooks`, and `Raw Event`.
+
+#### Telemetry Enrichment, Redirect Tracking & Webhook Correlation
+- **Telemetry Event Enrichment (`ExecutionEvent`)** — Comprehensive event payload capturing `fullRequestId`, `fullRouteId`, `queryParams`, `requestHeaders`, `requestBody`, `responseHeaders`, `responseBody`, `requestPayloadSize`, `responsePayloadSize`, `redirectChain`, and `webhookEvents`.
+- **Step-by-Step Redirect Follower** — Controlled HTTP client recording intermediate redirect hops, HTTP status transitions (e.g. `302 Found → 302 Found → 200 OK`), target URLs, hop indices, and response headers.
+- **Redirect Chain Visualization (`RedirectChainBanner`)** — Multi-hop visual stepper displaying redirect journeys, final destination status, and individual hop latency.
+- **Asynchronous Webhook Telemetry Correlation** — Correlates dispatched mock webhooks to originating trigger events via `parentEventId`, capturing target URL, payload size, execution latency, and delivery status.
+- **Payload Truncation & Binary Guardrails** — Safe 32 KB threshold protection preventing telemetry bloat while preserving diagnostic fidelity; binary payload detection (`application/octet-stream`, `image/*`) guards console UI against binary noise.
+- **Permissive Mock Sandbox CORS** — Configured backend `WebConfig.java` to support sandboxed `Origin: null` cross-origin requests targeting `/mock/**` endpoints while keeping administrative `/api/**` routes strictly protected.
+
+---
+
 ## [0.6.0] — Sprint 6: White Label Foundation & Enterprise Customization (2026-10-27)
 
 ### Added

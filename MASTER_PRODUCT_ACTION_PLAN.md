@@ -259,6 +259,20 @@ An open-source, self-hosted integration simulation platform for enterprises that
 
 ---
 
+## SECTION 9.5: RELEASE TRACKER & VERSION MILESTONES
+
+| Version | Codename / Theme | Status | Release Date | Summary |
+|---|---|---|---|---|
+| **v0.6.1** | **Interactive Simulation Experience** | **Released** | 2026-10-30 | Hardware-isolated HTML response preview (zero double execution), Source/Preview RouteDrawer, Interactive Console Explorer (search, filters, sub-second precision `HH:mm:ss.SSS`), redirect chain tracking, and webhook telemetry correlation. |
+| **v0.6.0** | **White Label Foundation & Enterprise Customization** | **Released** | 2026-10-27 | Single-tenant branding engine, dynamic logos/colors, SSR zero-FOUC theme hydration, Redis branding cache, and polyglot template-to-script pipeline. |
+| **v0.5.1** | **First-Time User Experience & Productivity** | **Released** | 2026-10-17 | Headers editor, banking sandbox demo modal, segregated Test Client and Mock Definition views. |
+| **v0.4.0** | **Authentication Foundation & Multi-User Identity** | **Released** | 2026-10-15 | JWT-based auth wall, login screen, and user session management. |
+| **v0.3.0** | **Protocol Extensibility (GraphQL / gRPC)** | **Released** | 2026-10-08 | Multi-protocol routing engine foundation. |
+| **v0.2.0** | **Scenario State Engine & Scripting** | **Released** | 2026-10-05 | Stateful scenario transitions and Polyglot scripting support. |
+| **v0.1.0** | **Initial Core Engine** | **Released** | 2026-10-02 | REST mock engine and core persistence. |
+
+---
+
 ## SECTION 10: THE NEXT 12 SPRINTS
 
 ### Sprint 1: ISO8583 Data Dictionary & Packager Upload
