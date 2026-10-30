@@ -7,6 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.io.ByteArrayInputStream;
@@ -53,6 +56,14 @@ public class RequestMatcher {
         Map<String, String> queryMatchers = (Map<String, String>) matchers.get("queryParams");
         if (queryMatchers != null && !matchQueryParams(request, queryMatchers)) {
             log.debug("Query param matching failed for route {}", route.getId());
+            return false;
+        }
+
+        // Check form data matchers (canonical: formData, alias: formParams)
+        @SuppressWarnings("unchecked")
+        Map<String, String> formDataMatchers = resolveFormDataMatchers(matchers);
+        if (formDataMatchers != null && !matchFormData(request, requestBody, formDataMatchers)) {
+            log.debug("Form data matching failed for route {}", route.getId());
             return false;
         }
 
@@ -107,6 +118,73 @@ public class RequestMatcher {
             }
         }
         return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> resolveFormDataMatchers(Map<String, Object> matchers) {
+        Map<String, String> formData = (Map<String, String>) matchers.get("formData");
+        Map<String, String> formParams = (Map<String, String>) matchers.get("formParams");
+        if (formData == null && formParams == null) {
+            return null;
+        }
+        Map<String, String> merged = new HashMap<>();
+        if (formParams != null) {
+            merged.putAll(formParams);
+        }
+        if (formData != null) {
+            merged.putAll(formData); // Canonical formData takes precedence over alias formParams
+        }
+        return merged;
+    }
+
+    private boolean matchFormData(HttpServletRequest request, String requestBody, Map<String, String> formDataMatchers) {
+        Map<String, String> parsedBodyParams = parseFormUrlEncodedBody(requestBody);
+        for (Map.Entry<String, String> entry : formDataMatchers.entrySet()) {
+            String paramName = entry.getKey();
+            String expectedPattern = entry.getValue();
+            String actualValue = parsedBodyParams.get(paramName);
+            if (actualValue == null && request != null) {
+                actualValue = request.getParameter(paramName);
+            }
+
+            if (actualValue == null) {
+                log.debug("Form field '{}' not found in request", paramName);
+                return false;
+            }
+
+            if (!matchesPattern(actualValue, expectedPattern)) {
+                log.debug("Form field '{}' value '{}' does not match pattern '{}'",
+                    paramName, actualValue, expectedPattern);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static Map<String, String> parseFormUrlEncodedBody(String body) {
+        Map<String, String> params = new HashMap<>();
+        if (body == null || body.trim().isEmpty()) {
+            return params;
+        }
+        String trimmed = body.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[") || trimmed.startsWith("<")) {
+            return params;
+        }
+        for (String pair : trimmed.split("&")) {
+            if (pair.isEmpty()) {
+                continue;
+            }
+            int idx = pair.indexOf('=');
+            if (idx >= 0) {
+                String key = URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8);
+                String val = URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8);
+                params.put(key, val);
+            } else {
+                String key = URLDecoder.decode(pair, StandardCharsets.UTF_8);
+                params.put(key, "");
+            }
+        }
+        return params;
     }
 
     private boolean matchBody(String requestBody, String matchType, String pattern) {

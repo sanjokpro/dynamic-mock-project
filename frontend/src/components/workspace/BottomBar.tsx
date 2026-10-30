@@ -105,9 +105,17 @@ export function BottomBar({ isOpen, onToggle }: { isOpen: boolean; onToggle: () 
         const matchesStatus = String(ev.status).includes(query);
         const matchesId = ev.id?.toLowerCase().includes(query);
         const matchesRouteId = ev.resourceId?.toLowerCase().includes(query);
-        const matchesMatch = ev.matchName?.toLowerCase().includes(query);
+        const matchesMatchedRoute = ev.matchedRoute?.toLowerCase().includes(query);
+        const matchesMatchName = ev.matchName?.toLowerCase().includes(query);
         return Boolean(
-          matchesPath || matchesQuery || matchesMethod || matchesStatus || matchesId || matchesRouteId || matchesMatch
+          matchesPath ||
+            matchesQuery ||
+            matchesMethod ||
+            matchesStatus ||
+            matchesId ||
+            matchesRouteId ||
+            matchesMatchedRoute ||
+            matchesMatchName
         );
       }
 

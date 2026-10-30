@@ -16,6 +16,8 @@ export interface MockRoute extends PlatformResource {
   matchers?: {
     headers?: Record<string, string>;
     queryParams?: Record<string, string>;
+    formData?: Record<string, string>;
+    formParams?: Record<string, string>;
     bodyMatchType?: string;
     bodyMatchPattern?: string;
   };
@@ -68,6 +70,8 @@ export interface RedirectHop {
 export interface WebhookExecutionDetail {
   sourceRouteId?: string;
   parentEventId?: string;
+  executionMode?: 'sync' | 'async';
+  blocking?: boolean;
   targetUrl?: string;
   finalUrl?: string;
   method?: string;
@@ -105,6 +109,7 @@ export interface ExecutionEvent {
   responseHeaders?: Record<string, string>;
   responseBody?: string;
   durationMs: number;
+  matchedRoute?: string;
   matchName?: string;
   redirectChain?: RedirectHop[];
   webhookDetail?: WebhookExecutionDetail;

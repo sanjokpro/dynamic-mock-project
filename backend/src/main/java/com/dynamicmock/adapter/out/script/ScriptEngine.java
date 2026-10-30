@@ -136,6 +136,9 @@ public class ScriptEngine {
     
     private Value createRequestObject(Context polyglotContext, ScriptContext context, String language) {
         Object bodyObj = context.getBodyJson() != null ? context.getBodyJson() : (context.getBody() != null ? context.getBody() : "");
+        Map<String, String> resolvedFormData = context.getFormData() != null
+            ? context.getFormData()
+            : (context.getFormParams() != null ? context.getFormParams() : Map.of());
         
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("method", context.getMethod() != null ? context.getMethod() : "");
@@ -145,6 +148,8 @@ public class ScriptEngine {
         requestMap.put("queryParams", context.getQueryParams() != null ? context.getQueryParams() : Map.of());
         requestMap.put("params", context.getPathVariables() != null ? context.getPathVariables() : Map.of());
         requestMap.put("pathVariables", context.getPathVariables() != null ? context.getPathVariables() : Map.of());
+        requestMap.put("formData", resolvedFormData);
+        requestMap.put("formParams", resolvedFormData);
         requestMap.put("body", bodyObj);
         
         return createObject(polyglotContext, language, requestMap);

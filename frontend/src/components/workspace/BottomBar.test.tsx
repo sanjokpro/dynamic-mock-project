@@ -278,4 +278,66 @@ describe('BottomBar & Console Explorer (Phase 6)', () => {
     // Row remains collapsed (e.stopPropagation prevented toggle)
     expect(screen.queryByTestId(`traffic-event-details-${mockEvent1.id}`)).toBeNull();
   });
+
+  it('9. prefers canonical matchedRoute and falls back to legacy matchName in TrafficEventDetails and TrafficEventRow', () => {
+    const canonicalEvent: ExecutionEvent = {
+      ...mockEvent1,
+      id: 'req-canonical-1',
+      matchedRoute: 'GET /canonical/route',
+      matchName: 'GET /legacy/route',
+    };
+    const legacyOnlyEvent: ExecutionEvent = {
+      ...mockEvent1,
+      id: 'req-legacy-2',
+      matchName: 'POST /legacy-only/route',
+    };
+
+    mockUseTraffic.mockReturnValue({
+      events: [canonicalEvent, legacyOnlyEvent],
+      clearEvents: clearEventsMock,
+    });
+
+    render(<BottomBar isOpen={true} onToggle={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId(`traffic-row-header-${canonicalEvent.id}`));
+    fireEvent.click(screen.getByTestId(`traffic-row-header-${legacyOnlyEvent.id}`));
+
+    const matchedRouteLabels = screen.getAllByTestId('traffic-detail-matched-route');
+    expect(matchedRouteLabels[0].textContent).toContain('Matched Route: GET /canonical/route');
+    expect(matchedRouteLabels[1].textContent).toContain('Matched Route: POST /legacy-only/route');
+  });
+
+  it('10. searches across both canonical matchedRoute and legacy matchName in BottomBar filter', () => {
+    const eventWithMatchedRouteOnly: ExecutionEvent = {
+      ...mockEvent1,
+      id: 'req-matched-route-only',
+      path: '/alpha',
+      matchedRoute: 'GET /v2/checkout-canonical',
+    };
+    const eventWithMatchNameOnly: ExecutionEvent = {
+      ...mockEvent1,
+      id: 'req-match-name-only',
+      path: '/beta',
+      matchName: 'POST /v1/payment-legacy',
+    };
+
+    mockUseTraffic.mockReturnValue({
+      events: [eventWithMatchedRouteOnly, eventWithMatchNameOnly],
+      clearEvents: clearEventsMock,
+    });
+
+    render(<BottomBar isOpen={true} onToggle={vi.fn()} />);
+
+    const searchInput = screen.getByTestId('traffic-search-input');
+
+    // Search by canonical matchedRoute
+    fireEvent.change(searchInput, { target: { value: 'checkout-canonical' } });
+    expect(screen.getByTestId(`traffic-event-row-${eventWithMatchedRouteOnly.id}`)).toBeTruthy();
+    expect(screen.queryByTestId(`traffic-event-row-${eventWithMatchNameOnly.id}`)).toBeNull();
+
+    // Search by legacy matchName
+    fireEvent.change(searchInput, { target: { value: 'payment-legacy' } });
+    expect(screen.queryByTestId(`traffic-event-row-${eventWithMatchedRouteOnly.id}`)).toBeNull();
+    expect(screen.getByTestId(`traffic-event-row-${eventWithMatchNameOnly.id}`)).toBeTruthy();
+  });
 });

@@ -23,6 +23,8 @@ public class ScriptContext {
     private Map<String, String> headers;
     private Map<String, String> queryParams;
     private Map<String, String> pathVariables;
+    private Map<String, String> formData;
+    private Map<String, String> formParams;
     private String body;
     private Map<String, Object> bodyJson;
     
@@ -37,10 +39,31 @@ public class ScriptContext {
     // Variables (request-scoped)
     private Map<String, Object> variables;
     
-    // Webhook configuration (trigger async webhook post-response)
+    // Webhook configuration (trigger async or sync webhook)
     private Map<String, Object> webhook;
 
     // Session identifier for concurrent QA scenario isolation
     private String sessionId;
-}
 
+    public Map<String, String> getFormData() {
+        return formData != null ? formData : formParams;
+    }
+
+    public Map<String, String> getFormParams() {
+        return formParams != null ? formParams : formData;
+    }
+
+    public void setFormData(Map<String, String> formData) {
+        this.formData = formData;
+        if (this.formParams == null && formData != null) {
+            this.formParams = formData;
+        }
+    }
+
+    public void setFormParams(Map<String, String> formParams) {
+        this.formParams = formParams;
+        if (this.formData == null && formParams != null) {
+            this.formData = formParams;
+        }
+    }
+}

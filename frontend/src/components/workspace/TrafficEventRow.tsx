@@ -63,6 +63,8 @@ export function TrafficEventRow({ event, isExpanded, onToggle }: TrafficEventRow
     return formatTimestampWithMs(event.timestamp);
   }, [event.timestamp]);
 
+  const matchedRouteLabel = event.matchedRoute || event.matchName || '';
+
   const displayId = React.useMemo(() => {
     if (event.id) {
       const truncated = event.id.length > 18 ? `${event.id.slice(0, 18)}...` : event.id;
@@ -72,8 +74,8 @@ export function TrafficEventRow({ event, isExpanded, onToggle }: TrafficEventRow
       const truncated = event.resourceId.length > 18 ? `${event.resourceId.slice(0, 18)}...` : event.resourceId;
       return `Route: ${truncated}`;
     }
-    return event.matchName || '';
-  }, [event.id, event.resourceId, event.matchName]);
+    return matchedRouteLabel;
+  }, [event.id, event.resourceId, matchedRouteLabel]);
 
   const handleCopyId = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,7 +149,7 @@ export function TrafficEventRow({ event, isExpanded, onToggle }: TrafficEventRow
           title={
             event.id
               ? `Request ID: ${event.id}${event.resourceId ? `\nRoute ID: ${event.resourceId}` : ''}\nClick to copy`
-              : (event.resourceId ? `Route ID: ${event.resourceId}` : event.matchName || '')
+              : (event.resourceId ? `Route ID: ${event.resourceId}` : matchedRouteLabel)
           }
           data-testid="traffic-row-match"
         >

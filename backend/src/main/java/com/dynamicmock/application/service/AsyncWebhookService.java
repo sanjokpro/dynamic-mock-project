@@ -2,6 +2,8 @@ package com.dynamicmock.application.service;
 
 import com.dynamicmock.adapter.in.web.dto.RedirectHop;
 import com.dynamicmock.adapter.in.web.dto.WebhookExecutionDetail;
+import com.dynamicmock.domain.model.execution.ExecutionMode;
+import com.dynamicmock.domain.model.execution.MockActionContract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,9 +33,12 @@ public class AsyncWebhookService {
     private final RestTemplate restTemplate;
     private final TrafficLogger trafficLogger;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    
+
     @Value("${mock.route.max-delay-ms:30000}")
     private int maxDelayMs = 30000;
+
+    @Value("${app.mock.base-url:http://localhost:8080}")
+    private String mockBaseUrl = "http://localhost:8080";
 
     public AsyncWebhookService(TrafficLogger trafficLogger) {
         this.trafficLogger = trafficLogger;
@@ -56,16 +61,22 @@ public class AsyncWebhookService {
 
     @Async("webhookTaskExecutor")
     public void triggerWebhook(String sourceRouteId, String parentEventId, Map<String, Object> webhookConfig) {
+        executeWebhookSync(sourceRouteId, parentEventId, webhookConfig);
+    }
+
+    public WebhookExecutionResult executeWebhookSync(String sourceRouteId, String parentEventId,
+            Map<String, Object> webhookConfig) {
         if (webhookConfig == null || webhookConfig.isEmpty()) {
-            return;
+            return null;
         }
 
         long startNano = System.nanoTime();
-        String url = (String) webhookConfig.get("url");
-        if (url == null || url.trim().isEmpty()) {
+        String rawUrl = (String) webhookConfig.get("url");
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
             log.warn("Webhook config missing URL: {}", webhookConfig);
-            return;
+            return null;
         }
+        String url = normalizeWebhookUrl(rawUrl);
 
         String methodStr = (String) webhookConfig.getOrDefault("method", "POST");
         HttpMethod initialMethod;
@@ -75,10 +86,10 @@ public class AsyncWebhookService {
             log.warn("Invalid webhook method '{}', defaulting to POST", methodStr);
             initialMethod = HttpMethod.POST;
         }
-        
+
         Object body = webhookConfig.get("body");
         String requestBodyStr = serializeBodyToString(body);
-        
+
         int delayMs = 0;
         if (webhookConfig.containsKey("delayMs")) {
             Object delayObj = webhookConfig.get("delayMs");
@@ -92,7 +103,7 @@ public class AsyncWebhookService {
                 }
             }
         }
-        
+
         if (delayMs > maxDelayMs) {
             log.warn("Webhook delay {} exceeds maximum allowed {}, capping at max", delayMs, maxDelayMs);
             delayMs = maxDelayMs;
@@ -102,7 +113,7 @@ public class AsyncWebhookService {
         if (body != null) {
             headers.add("Content-Type", "application/json");
         }
-        
+
         Object customHeaders = webhookConfig.get("headers");
         if (customHeaders instanceof Map) {
             @SuppressWarnings("unchecked")
@@ -119,10 +130,11 @@ public class AsyncWebhookService {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("Webhook delay interrupted");
-                return;
+                return null;
             }
         }
 
+        MockActionContract contract = MockActionContract.fromConfig(webhookConfig);
         List<RedirectHop> redirectChain = new ArrayList<>();
         String currentUrl = url;
         HttpMethod currentMethod = initialMethod;
@@ -139,7 +151,8 @@ public class AsyncWebhookService {
                 HttpEntity<Object> entity = new HttpEntity<>(currentBody, headers);
 
                 log.debug("Triggering webhook (hop {}) to {} {}", hop, currentMethod, currentUrl);
-                ResponseEntity<String> response = restTemplate.exchange(currentUrl, currentMethod, entity, String.class);
+                ResponseEntity<String> response = restTemplate.exchange(currentUrl, currentMethod, entity,
+                        String.class);
 
                 double hopDurationMs = computeDurationMs(hopStartNano);
                 status = response.getStatusCode().value();
@@ -149,7 +162,7 @@ public class AsyncWebhookService {
                 responseBodyStr = response.getBody();
 
                 String location = extractLocationHeader(response.getHeaders());
-                if (isRedirectStatus(status) && location != null && !location.isBlank() && hop <= MAX_REDIRECTS) {
+                if (contract.isFollowRedirects() && isRedirectStatus(status) && location != null && !location.isBlank() && hop <= MAX_REDIRECTS) {
                     redirectChain.add(RedirectHop.builder()
                             .step(hop)
                             .method(currentMethod.name())
@@ -159,7 +172,7 @@ public class AsyncWebhookService {
                             .durationMs(hopDurationMs)
                             .build());
 
-                    currentUrl = resolveRedirectUrl(currentUrl, location);
+                    currentUrl = normalizeWebhookUrl(resolveRedirectUrl(currentUrl, location));
                     if (status == 301 || status == 302 || status == 303) {
                         currentMethod = HttpMethod.GET;
                         currentBody = null;
@@ -194,6 +207,7 @@ public class AsyncWebhookService {
                 .finalUrl(currentUrl)
                 .method(initialMethod.name())
                 .delayMs(delayMs)
+                .executionMode(contract.getExecutionMode().getValue())
                 .requestHeaders(reqHeadersMap)
                 .requestBody(TrafficLogger.sanitizePayload(requestBodyStr, reqHeadersMap.get("Content-Type")))
                 .responseStatus(status)
@@ -202,23 +216,36 @@ public class AsyncWebhookService {
                 .errorMessage(errorMessage)
                 .build();
 
+        String matchName = contract.getExecutionMode() == ExecutionMode.SYNC ? "Sync Webhook" : "Async Webhook";
+
         // Log to traffic logger
         trafficLogger.log(TrafficLogger.ExecutionEvent.builder()
-            .protocol("WEBHOOK")
-            .resourceId(sourceRouteId != null ? sourceRouteId : "unknown")
-            .parentEventId(parentEventId)
-            .method(initialMethod.name())
-            .path(url)
-            .requestHeaders(reqHeadersMap)
-            .requestBody(requestBodyStr)
-            .status(status)
-            .responseHeaders(resHeadersMap)
-            .responseBody(responseBodyStr)
-            .durationMs(totalDurationMs)
-            .matchName("Async Webhook")
-            .redirectChain(redirectChain)
-            .webhookDetail(webhookDetail)
-            .build());
+                .protocol("WEBHOOK")
+                .resourceId(sourceRouteId != null ? sourceRouteId : "unknown")
+                .parentEventId(parentEventId)
+                .method(initialMethod.name())
+                .path(url)
+                .requestHeaders(reqHeadersMap)
+                .requestBody(requestBodyStr)
+                .status(status)
+                .responseHeaders(resHeadersMap)
+                .responseBody(responseBodyStr)
+                .durationMs(totalDurationMs)
+                .matchedRoute(matchName)
+                .matchName(matchName)
+                .redirectChain(redirectChain)
+                .webhookDetail(webhookDetail)
+                .build());
+
+        return WebhookExecutionResult.builder()
+                .status(status)
+                .responseHeaders(resHeadersMap)
+                .responseBody(responseBodyStr)
+                .redirectChain(redirectChain)
+                .webhookDetail(webhookDetail)
+                .durationMs(totalDurationMs)
+                .errorMessage(errorMessage)
+                .build();
     }
 
     private String serializeBodyToString(Object body) {
@@ -259,5 +286,45 @@ public class AsyncWebhookService {
     private static double computeDurationMs(long startNano) {
         double rawMs = (System.nanoTime() - startNano) / 1_000_000.0;
         return Math.round(rawMs * 100.0) / 100.0;
+    }
+
+    public String normalizeWebhookUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.trim().isEmpty()) {
+            return rawUrl;
+        }
+        String normalized = rawUrl.trim();
+        while (normalized.contains("%3A") || normalized.contains("%3a")
+                || normalized.contains("%2F") || normalized.contains("%2f")) {
+            try {
+                String decoded = java.net.URLDecoder.decode(normalized, java.nio.charset.StandardCharsets.UTF_8);
+                if (decoded.equals(normalized)) {
+                    break;
+                }
+                normalized = decoded;
+            } catch (Exception e) {
+                break;
+            }
+        }
+        String base = mockBaseUrl != null && mockBaseUrl.endsWith("/")
+                ? mockBaseUrl.substring(0, mockBaseUrl.length() - 1)
+                : (mockBaseUrl != null ? mockBaseUrl : "http://localhost:8080");
+        if (normalized.startsWith("http://localhost/mock/")) {
+            normalized = base + normalized.substring("http://localhost".length());
+        }
+        return normalized;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class WebhookExecutionResult {
+        private int status;
+        private Map<String, String> responseHeaders;
+        private String responseBody;
+        private List<RedirectHop> redirectChain;
+        private WebhookExecutionDetail webhookDetail;
+        private double durationMs;
+        private String errorMessage;
     }
 }

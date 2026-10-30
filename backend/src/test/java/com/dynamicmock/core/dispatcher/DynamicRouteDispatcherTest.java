@@ -62,6 +62,9 @@ class DynamicRouteDispatcherTest {
     private com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
 
     @Mock
+    private com.dynamicmock.application.service.AsyncWebhookService asyncWebhookService;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -303,6 +306,8 @@ class DynamicRouteDispatcherTest {
         org.junit.jupiter.api.Assertions.assertEquals("login", event.getQueryParams().get("action"));
         org.junit.jupiter.api.Assertions.assertEquals(200, event.getStatus());
         org.junit.jupiter.api.Assertions.assertEquals("<html><body>OK</body></html>", event.getResponseBody());
+        org.junit.jupiter.api.Assertions.assertEquals("GET /mock/test", event.getMatchedRoute());
+        org.junit.jupiter.api.Assertions.assertEquals("GET /mock/test", event.getMatchName());
         assertTrue(event.getDurationMs() >= 0.0);
     }
 

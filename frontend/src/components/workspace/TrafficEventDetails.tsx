@@ -119,9 +119,9 @@ export function TrafficEventDetails({ event }: TrafficEventDetailsProps) {
 
         {/* Timestamp and Match info */}
         <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
-          {event.matchName && (
-            <span>
-              Match: <strong className="text-foreground">{event.matchName}</strong>
+          {(event.matchedRoute || event.matchName) && (
+            <span data-testid="traffic-detail-matched-route">
+              Matched Route: <strong className="text-foreground">{event.matchedRoute || event.matchName}</strong>
             </span>
           )}
           <span>{formatTimestampWithMs(event.timestamp)} ({new Date(event.timestamp).toLocaleDateString()})</span>
@@ -311,10 +311,18 @@ export function TrafficEventDetails({ event }: TrafficEventDetailsProps) {
             <div className="rounded border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4 text-amber-500" />
-                <span className="font-bold text-foreground">Asynchronous Webhook Dispatch</span>
+                <span className="font-bold text-foreground">
+                  {event.webhookDetail.executionMode === 'sync' || event.webhookDetail.blocking
+                    ? 'Synchronous Webhook Dispatch'
+                    : 'Asynchronous Webhook Dispatch'}
+                </span>
               </div>
 
               <div className="grid grid-cols-[100px_1fr] gap-1.5 text-xs font-mono">
+                <span className="text-muted-foreground">Execution Mode:</span>
+                <span className="font-bold uppercase">
+                  {event.webhookDetail.executionMode || (event.webhookDetail.blocking ? 'sync' : 'async')}
+                </span>
                 <span className="text-muted-foreground">Target URL:</span>
                 <span className="text-foreground break-all">{event.webhookDetail.targetUrl}</span>
                 {event.webhookDetail.finalUrl && event.webhookDetail.finalUrl !== event.webhookDetail.targetUrl && (

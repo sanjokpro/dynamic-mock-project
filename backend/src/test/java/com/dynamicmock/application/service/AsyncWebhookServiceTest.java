@@ -166,4 +166,27 @@ class AsyncWebhookServiceTest {
         assertEquals("http://localhost:8080/mock/return-url-redirector", logged.getWebhookDetail().getTargetUrl());
         assertEquals("http://localhost:8080/mock/return-url-final-destination", logged.getWebhookDetail().getFinalUrl());
     }
+
+    @Test
+    void triggerWebhook_shouldDecodePercentEncodedUrlAndNormalizeInternalMockGateway() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("url", "http%3A%2F%2Flocalhost%2Fmock%2Freturn-redirect");
+        config.put("method", "GET");
+
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/return-redirect"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class)
+        )).thenReturn(ResponseEntity.ok("ok"));
+
+        asyncWebhookService.triggerWebhook("route-123", config);
+
+        verify(restTemplate).exchange(
+                eq("http://localhost:8080/mock/return-redirect"),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(String.class)
+        );
+    }
 }

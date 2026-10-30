@@ -6,6 +6,8 @@ import com.dynamicmock.adapter.out.template.ResponseTemplateEngine;
 import com.dynamicmock.application.service.ScenarioService;
 import com.dynamicmock.domain.entity.MockRoute;
 import com.dynamicmock.domain.entity.Scenario.ScenarioState;
+import com.dynamicmock.domain.model.execution.ExecutionMode;
+import com.dynamicmock.domain.model.execution.MockActionContract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +21,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +43,19 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
     private final com.dynamicmock.application.service.WorkspaceEnvironmentService environmentService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final com.dynamicmock.application.service.AsyncWebhookService asyncWebhookService;
+
+    private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
+        "transfer-encoding",
+        "content-length",
+        "connection",
+        "keep-alive",
+        "proxy-authenticate",
+        "proxy-authorization",
+        "te",
+        "trailers",
+        "trailer",
+        "upgrade"
+    );
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -128,6 +144,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .responseHeaders(Map.of("Content-Type", "application/json"))
                 .responseBody(noMatchBody)
                 .durationMs(computeDurationMs(startNano))
+                .matchedRoute("No Match (Matchers)")
                 .matchName("No Match (Matchers)")
                 .build());
             return false;
@@ -235,6 +252,38 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 scenarioService.processTransition(route.getScenarioName(), transitionContext, scriptContext.getSessionId());
             }
             
+            String requestEventId = java.util.UUID.randomUUID().toString();
+            Map<String, Object> webhookConfig = scriptContext.getWebhook();
+            MockActionContract actionContract = MockActionContract.fromConfig(webhookConfig);
+            boolean hasWebhook = webhookConfig != null && !webhookConfig.isEmpty();
+            boolean isSyncWebhook = hasWebhook && actionContract.getExecutionMode() == ExecutionMode.SYNC;
+
+            // Execute synchronous webhook if configured
+            if (isSyncWebhook) {
+                try {
+                    com.dynamicmock.application.service.AsyncWebhookService.WebhookExecutionResult webhookResult =
+                        asyncWebhookService.executeWebhookSync(route.getId(), requestEventId, webhookConfig);
+                    if (actionContract.isReturnResponseToCaller() && webhookResult != null && webhookResult.getStatus() > 0) {
+                        scriptContext.setStatus(webhookResult.getStatus());
+                        if (webhookResult.getResponseHeaders() != null && !webhookResult.getResponseHeaders().isEmpty()) {
+                            Map<String, String> cleanHeaders = new HashMap<>();
+                            webhookResult.getResponseHeaders().forEach((k, v) -> {
+                                if (k != null && !HOP_BY_HOP_HEADERS.contains(k.toLowerCase())) {
+                                    cleanHeaders.put(k, v);
+                                }
+                            });
+                            scriptContext.setResponseHeaders(cleanHeaders);
+                        }
+                        if (webhookResult.getResponseBody() != null) {
+                            responseBody = webhookResult.getResponseBody();
+                            scriptContext.setResponseBody(responseBody);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to execute synchronous webhook: {}", e.getMessage(), e);
+                }
+            }
+
             // Send response
             sendResponse(response, route, scriptContext, responseBody);
 
@@ -245,12 +294,11 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             }
 
             Map<String, String> finalResponseHeaders = resolveFinalResponseHeaders(route, scriptContext);
-            String requestEventId = java.util.UUID.randomUUID().toString();
 
-            // Trigger async webhook if configured
-            if (scriptContext.getWebhook() != null && !scriptContext.getWebhook().isEmpty()) {
+            // Trigger async webhook if configured and in ASYNC mode
+            if (!isSyncWebhook && hasWebhook) {
                 try {
-                    asyncWebhookService.triggerWebhook(route.getId(), requestEventId, scriptContext.getWebhook());
+                    asyncWebhookService.triggerWebhook(route.getId(), requestEventId, webhookConfig);
                 } catch (Exception e) {
                     log.error("Failed to enqueue async webhook: {}", e.getMessage(), e);
                 }
@@ -270,6 +318,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .responseHeaders(finalResponseHeaders)
                 .responseBody(responseBody)
                 .durationMs(computeDurationMs(startNano))
+                .matchedRoute(matchName)
                 .matchName(matchName)
                 .build());
             
@@ -295,6 +344,7 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                 .responseHeaders(Map.of("Content-Type", "application/json"))
                 .responseBody(errorBody)
                 .durationMs(computeDurationMs(startNano))
+                .matchedRoute(matchName + " (Error)")
                 .matchName(matchName + " (Error)")
                 .build());
         }
@@ -379,12 +429,16 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             stateKey = "dynamic-mock:script-state:env:" + envId;
         }
 
+        Map<String, String> formData = extractFormData(request, body);
+
         return ScriptContext.builder()
             .method(request.getMethod())
             .path(request.getRequestURI())
             .headers(headers)
             .queryParams(queryParams)
             .pathVariables(match.getPathVariables())
+            .formData(formData)
+            .formParams(formData)
             .body(body)
             .bodyJson(parseJsonBody(body))
             .status(match.getRoute().getResponseStatus() != null ? match.getRoute().getResponseStatus() : 200)
@@ -394,6 +448,17 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             .state(new com.dynamicmock.adapter.out.script.RedisBackedStateMap(stateKey, redisTemplate))
             .sessionId(sessionId)
             .build();
+    }
+
+    private Map<String, String> extractFormData(HttpServletRequest request, String body) {
+        String contentType = request.getContentType();
+        if (contentType != null && contentType.toLowerCase().contains("application/x-www-form-urlencoded")) {
+            Map<String, String> parsed = RequestMatcher.parseFormUrlEncodedBody(body);
+            if (!parsed.isEmpty()) {
+                return parsed;
+            }
+        }
+        return RequestMatcher.parseFormUrlEncodedBody(body);
     }
     
     private Map<String, Object> parseJsonBody(String body) {
@@ -416,12 +481,17 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         Map<String, Object> templateContext = new HashMap<>();
         
         // Add request details
+        Map<String, String> resolvedFormData = context.getFormData() != null
+            ? context.getFormData()
+            : (context.getFormParams() != null ? context.getFormParams() : Map.of());
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("method", context.getMethod() != null ? context.getMethod() : "");
         requestMap.put("path", context.getPath() != null ? context.getPath() : "");
         requestMap.put("headers", context.getHeaders() != null ? context.getHeaders() : Map.of());
         requestMap.put("queryParams", context.getQueryParams() != null ? context.getQueryParams() : Map.of());
         requestMap.put("pathVariables", context.getPathVariables() != null ? context.getPathVariables() : Map.of());
+        requestMap.put("formData", resolvedFormData);
+        requestMap.put("formParams", resolvedFormData);
         requestMap.put("body", context.getBody() != null ? context.getBody() : "");
         requestMap.put("bodyJson", context.getBodyJson() != null ? context.getBodyJson() : Map.of());
         templateContext.put("request", requestMap);
@@ -492,13 +562,21 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
                     (route.getResponseStatus() != null ? route.getResponseStatus() : 200);
         response.setStatus(status);
         
-        // Set headers
+        // Set headers: route static headers first, then dynamic context headers override
+        if (route.getResponseHeaders() != null) {
+            route.getResponseHeaders().forEach((k, v) -> {
+                if (k != null && !HOP_BY_HOP_HEADERS.contains(k.toLowerCase())) {
+                    response.setHeader(k, v);
+                }
+            });
+        }
         Map<String, String> headers = context.getResponseHeaders();
         if (headers != null) {
-            headers.forEach(response::setHeader);
-        }
-        if (route.getResponseHeaders() != null) {
-            route.getResponseHeaders().forEach(response::setHeader);
+            headers.forEach((k, v) -> {
+                if (k != null && !HOP_BY_HOP_HEADERS.contains(k.toLowerCase())) {
+                    response.setHeader(k, v);
+                }
+            });
         }
         
         // Set content type if not set
@@ -519,5 +597,9 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         } else {
             log.warn("No response body to send");
         }
+    }
+
+    private boolean isBlockingWebhook(Map<String, Object> webhookConfig) {
+        return MockActionContract.fromConfig(webhookConfig).getExecutionMode() == ExecutionMode.SYNC;
     }
 }

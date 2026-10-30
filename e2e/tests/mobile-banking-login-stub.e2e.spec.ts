@@ -126,6 +126,11 @@ const STANDALONE_LOGIN_HTML = `<!DOCTYPE html>
       var form = document.getElementById('mobile-login-form');
       var statusEl = document.getElementById('login-status');
       var returnUrl = statusEl.getAttribute('data-return-url');
+      try {
+        if (returnUrl && returnUrl.indexOf('%') !== -1) {
+          returnUrl = decodeURIComponent(returnUrl);
+        }
+      } catch (e) {}
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         statusEl.textContent = 'Processing login...';
@@ -160,6 +165,20 @@ if (!returnUrl && request.body && typeof request.body === 'string' && request.bo
       returnUrl = decodeURIComponent(match[1]);
     }
   }
+}
+
+if (returnUrl) {
+  var s = String(returnUrl).trim();
+  while (s.indexOf('%') !== -1) {
+    try {
+      var d = decodeURIComponent(s);
+      if (d === s) break;
+      s = d;
+    } catch (e) {
+      break;
+    }
+  }
+  returnUrl = s;
 }
 
 var action = (request.queryParams && request.queryParams.action) ||
@@ -333,8 +352,9 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
     await expect(urlInput).toHaveValue('{{BASE_URL}}/mobile-banking/login?returnUrl=http://localhost/mock/return-redirect');
 
     // Clear the Live Traffic Console in the UI before testing
-    const consolePanel = uiPage.locator('div.bg-black.text-green-500');
+    const consolePanel = uiPage.locator('[data-testid="bottom-bar-panel"]');
     await expect(consolePanel).toBeVisible();
+    const consoleList = uiPage.locator('[data-testid="traffic-console-list"]');
     const clearConsoleBtn = uiPage.locator('button:has-text("Clear")');
     if (await clearConsoleBtn.isVisible()) {
       await clearConsoleBtn.click();
@@ -370,10 +390,10 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
 
     // CRITICAL DISTINCTION: Rendering the login page MUST NOT call the return URL!
     await consumerPage.waitForTimeout(1000);
-    await expect(consolePanel.locator('span:has-text("/mobile-banking/login")').first()).toBeVisible();
-    await expect(consolePanel.locator('span:has-text("/return-redirect")')).toHaveCount(0);
-    await expect(consolePanel.locator('span:has-text("/return-final")')).toHaveCount(0);
-    await expect(consolePanel.locator('span:has-text("WEBHOOK")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/mobile-banking/login")').first()).toBeVisible();
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-redirect")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-final")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-protocol"]:has-text("WEBHOOK")')).toHaveCount(0);
 
     // Also verify that returnUrl in request body is supported without calling returnUrl on render
     const bodyRenderRes = await consumerPage.request.fetch(`${baseURL}/mock/mobile-banking/login`, {
@@ -386,8 +406,8 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
     const bodyRenderHtml = await bodyRenderRes.text();
     expect(bodyRenderHtml).toContain(`data-return-url="${configuredReturnUrl}"`);
     await consumerPage.waitForTimeout(500);
-    await expect(consolePanel.locator('span:has-text("/return-redirect")')).toHaveCount(0);
-    await expect(consolePanel.locator('span:has-text("/return-final")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-redirect")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-final")')).toHaveCount(0);
 
     // =========================================================================
     // STEP 3: Click Login
@@ -402,9 +422,9 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
     // 1. The backend called /return-redirect (302)
     // 2. The backend followed the redirect to /return-final (200)
     // 3. The async WEBHOOK event completed with status 200
-    await expect(consolePanel.locator('span:has-text("/return-redirect")').first()).toBeVisible({ timeout: 10000 });
-    await expect(consolePanel.locator('span:has-text("/return-final")').first()).toBeVisible({ timeout: 10000 });
-    await expect(consolePanel.locator('span:has-text("WEBHOOK")').first()).toBeVisible({ timeout: 10000 });
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-redirect")').first()).toBeVisible({ timeout: 10000 });
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-final")').first()).toBeVisible({ timeout: 10000 });
+    await expect(consoleList.locator('[data-testid="traffic-row-protocol"]:has-text("WEBHOOK")').first()).toBeVisible({ timeout: 10000 });
 
     // =========================================================================
     // STEP 4: Test without a return URL
@@ -412,7 +432,7 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
     // No return-URL request should be made.
     // =========================================================================
     await uiPage.locator('button:has-text("Clear")').click();
-    await expect(consolePanel.locator('span:has-text("/return-redirect")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-redirect")')).toHaveCount(0);
 
     const noReturnUrlRes = await consumerPage.goto(`${baseURL}/mock/mobile-banking/login`);
     expect(noReturnUrlRes).not.toBeNull();
@@ -425,10 +445,10 @@ test.describe('Dynamic Mock UI - Custom HTML Mobile Banking Login Stub E2E', () 
 
     // Wait and confirm NO return-URL request or webhook was made
     await consumerPage.waitForTimeout(1000);
-    await expect(consolePanel.locator('span:has-text("/mobile-banking/login")').first()).toBeVisible();
-    await expect(consolePanel.locator('span:has-text("/return-redirect")')).toHaveCount(0);
-    await expect(consolePanel.locator('span:has-text("/return-final")')).toHaveCount(0);
-    await expect(consolePanel.locator('span:has-text("WEBHOOK")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/mobile-banking/login")').first()).toBeVisible();
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-redirect")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-path"]:has-text("/return-final")')).toHaveCount(0);
+    await expect(consoleList.locator('[data-testid="traffic-row-protocol"]:has-text("WEBHOOK")')).toHaveCount(0);
 
     await context.close();
   });

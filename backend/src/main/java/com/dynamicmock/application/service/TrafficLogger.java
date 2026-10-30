@@ -37,6 +37,13 @@ public class TrafficLogger {
         // Normalize durationMs to 2 decimal places for clean sub-millisecond display (e.g., 126.43)
         event.setDurationMs(Math.round(event.getDurationMs() * 100.0) / 100.0);
 
+        // Dual emission synchronization for matchedRoute (canonical) and matchName (legacy alias)
+        if (event.getMatchedRoute() != null && event.getMatchName() == null) {
+            event.setMatchName(event.getMatchedRoute());
+        } else if (event.getMatchName() != null && event.getMatchedRoute() == null) {
+            event.setMatchedRoute(event.getMatchName());
+        }
+
         String reqContentType = extractContentType(event.getRequestHeaders());
         String resContentType = extractContentType(event.getResponseHeaders());
 
@@ -137,10 +144,43 @@ public class TrafficLogger {
         private Map<String, String> responseHeaders;
         private String responseBody;
         private double durationMs;
+        private String matchedRoute;
         private String matchName;
         private List<RedirectHop> redirectChain;
         private WebhookExecutionDetail webhookDetail;
         private Long payloadSizeBytes;
         private Boolean bodyTruncated;
+
+        public void setMatchedRoute(String matchedRoute) {
+            this.matchedRoute = matchedRoute;
+            if (this.matchName == null) {
+                this.matchName = matchedRoute;
+            }
+        }
+
+        public void setMatchName(String matchName) {
+            this.matchName = matchName;
+            if (this.matchedRoute == null) {
+                this.matchedRoute = matchName;
+            }
+        }
+
+        public static class ExecutionEventBuilder {
+            public ExecutionEventBuilder matchedRoute(String matchedRoute) {
+                this.matchedRoute = matchedRoute;
+                if (this.matchName == null) {
+                    this.matchName = matchedRoute;
+                }
+                return this;
+            }
+
+            public ExecutionEventBuilder matchName(String matchName) {
+                this.matchName = matchName;
+                if (this.matchedRoute == null) {
+                    this.matchedRoute = matchName;
+                }
+                return this;
+            }
+        }
     }
 }
