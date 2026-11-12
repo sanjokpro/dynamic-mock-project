@@ -301,7 +301,7 @@ public class PostmanImportService {
 
             if (examples.isEmpty()) {
                 // Single route when no saved examples exist
-                Map<String, Object> matchers = buildMatchers(request);
+                Map<String, Object> matchers = buildMatchers(request, defaultMethod);
                 String matcherSig = buildMatcherSignature(matchers, body != null ? body.getRaw() : null);
                 String compositeKey = collectionId + "/" + folderPrefix + "/" + defaultMethod + ":" + defaultPath + "#__default__@" + matcherSig;
                 String routeId = generateUuidV5(UUIDV5_NAMESPACE, compositeKey).toString();
@@ -346,7 +346,7 @@ public class PostmanImportService {
                             ? origReq.getMethod().toUpperCase() : defaultMethod;
                     if (exMethod == null) exMethod = defaultMethod;
 
-                    Map<String, Object> matchers = origReq != null ? buildMatchers(origReq) : buildMatchers(request);
+                    Map<String, Object> matchers = origReq != null ? buildMatchers(origReq, exMethod) : buildMatchers(request, defaultMethod);
 
                     String template = example.getBody() != null
                             ? translatePostmanTemplate(example.getBody())
@@ -447,8 +447,8 @@ public class PostmanImportService {
                 PostmanResponse ex2 = examples.get(j);
                 Request req1 = ex1.getOriginalRequest();
                 Request req2 = ex2.getOriginalRequest();
-                int c1 = req1 != null ? countConstraints(req1) : 0;
-                int c2 = req2 != null ? countConstraints(req2) : 0;
+                int c1 = req1 != null ? countConstraints(req1, method) : 0;
+                int c2 = req2 != null ? countConstraints(req2, method) : 0;
                 if (c1 == c2) {
                     String name1 = ex1.getName() != null ? ex1.getName() : "Example " + (i + 1);
                     String name2 = ex2.getName() != null ? ex2.getName() : "Example " + (j + 1);
@@ -460,11 +460,14 @@ public class PostmanImportService {
         }
     }
 
-    private int countConstraints(Request req) {
+    private int countConstraints(Request req, String method) {
         int count = 0;
         if (req.getHeader() != null) {
             for (Header h : req.getHeader()) {
                 if (h.getKey() != null && !h.getKey().isBlank() && !Boolean.TRUE.equals(h.getDisabled())) {
+                    if (isIgnoredHeader(h.getKey(), method)) {
+                        continue;
+                    }
                     count++;
                 }
             }
@@ -477,6 +480,29 @@ public class PostmanImportService {
             }
         }
         return count;
+    }
+
+    private boolean isBodylessMethod(String method) {
+        return "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
+    }
+
+    private boolean isIgnoredHeader(String key, String method) {
+        if (key == null || key.isBlank()) {
+            return true;
+        }
+        String lower = key.trim().toLowerCase();
+        // Body-related headers describe payload content; on bodyless HTTP methods (GET, HEAD)
+        // they are non-applicable and should never be required as request matchers.
+        if (isBodylessMethod(method)) {
+            if ("content-type".equals(lower) || "content-length".equals(lower)) {
+                return true;
+            }
+        }
+        // Ephemeral or client-internal headers that should never become route matching constraints
+        if ("postman-token".equals(lower) || "host".equals(lower) || "connection".equals(lower)) {
+            return true;
+        }
+        return false;
     }
 
     private Collection findOrCreateCollection(String name, String ownerId, String description) {
@@ -553,10 +579,14 @@ public class PostmanImportService {
 
     /**
      * Convert Postman request headers and query params into route matchers.
-     * Disabled entries and entries with blank values are skipped.
+     * Disabled entries, entries with blank values, and method-incompatible headers are skipped.
      * Redundant "Header-Name: " prefixes in header values are sanitized.
      */
     private Map<String, Object> buildMatchers(Request request) {
+        return buildMatchers(request, request != null ? request.getMethod() : null);
+    }
+
+    private Map<String, Object> buildMatchers(Request request, String method) {
         Map<String, String> headerMatchers = new LinkedHashMap<>();
         if (request.getHeader() != null) {
             for (Header header : request.getHeader()) {
@@ -565,6 +595,9 @@ public class PostmanImportService {
                 }
                 if (Boolean.TRUE.equals(header.getDisabled())) {
                     continue; // Skip disabled headers
+                }
+                if (isIgnoredHeader(header.getKey(), method)) {
+                    continue; // Skip entity/ephemeral headers not applicable for this method
                 }
                 if (header.getValue() == null || header.getValue().isBlank()) {
                     continue;

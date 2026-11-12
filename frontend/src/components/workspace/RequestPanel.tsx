@@ -313,13 +313,15 @@ export function RequestPanel() {
       }
     }
 
+    const existingCt = Object.entries(requestHeaders).find(([k]) => k.toLowerCase() === 'content-type');
     if (requestBodyType === 'json') {
       headers['Content-Type'] = 'application/json';
     } else if (requestBodyType === 'form') {
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     } else if (requestBodyType === 'raw') {
-      const existingCt = Object.entries(requestHeaders).find(([k]) => k.toLowerCase() === 'content-type');
       headers['Content-Type'] = existingCt ? existingCt[1] : 'text/plain';
+    } else if (existingCt) {
+      headers['Content-Type'] = existingCt[1];
     }
 
     if (activeEnvironment) {

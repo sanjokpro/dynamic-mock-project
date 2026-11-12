@@ -306,6 +306,56 @@ class PostmanZeroTouchAcceptanceTest {
                 "Output response must contain response_code 1 (Dormant Account)");
     }
 
+    @Test
+    @DisplayName("07b. Zero-Touch Dispatch: ?VM=AV without Content-Type header matches normal account route")
+    void testBankSmartNormalAccountDispatchWithoutContentTypeHeader() throws Exception {
+        importService.importPostmanCollection(bankSmartFixtureBytes, null);
+
+        MockRoute successRoute = routeDatabase.values().stream()
+                .filter(r -> r.getMatchers() != null && "AV".equals(((Map<?, ?>) r.getMatchers().get("queryParams")).get("VM")))
+                .findFirst().orElseThrow();
+
+        // Verify that Content-Type was NOT retained as a header matcher for this GET route
+        if (successRoute.getMatchers().containsKey("headers")) {
+            Map<?, ?> headers = (Map<?, ?>) successRoute.getMatchers().get("headers");
+            assertFalse(headers.containsKey("Content-Type"),
+                    "Bodyless GET route must not require Content-Type header matcher");
+        }
+
+        RouteRegistry.RouteMatch mSuccess = RouteRegistry.RouteMatch.builder().route(successRoute).pathVariables(Map.of()).build();
+        RouteRegistry mockRegistry = mock(RouteRegistry.class);
+        when(mockRegistry.findRoutes("GET", "/mbank-verification")).thenReturn(new ArrayList<>(List.of(mSuccess)));
+
+        RequestMatcher realMatcher = new RequestMatcher();
+        DynamicRouteDispatcher dispatcher = new DynamicRouteDispatcher(
+                mockRegistry, scriptEngine, templateEngine, realMatcher, scenarioService,
+                new ObjectMapper(), trafficLogger, environmentService, redisTemplate, asyncWebhookService);
+
+        // Incoming GET request with ONLY ?VM=AV and NO headers
+        when(request.getRequestURI()).thenReturn("/mock/mbank-verification");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getQueryString()).thenReturn("VM=AV");
+        when(request.getParameter(anyString())).thenAnswer(inv -> "VM".equals(inv.getArgument(0, String.class)) ? "AV" : null);
+        when(request.getParameterMap()).thenReturn(Map.of("VM", new String[]{"AV"}));
+        when(request.getHeaderNames()).thenReturn(Collections.emptyEnumeration());
+        when(request.getContentLength()).thenReturn(0);
+
+        StringWriter out = new StringWriter();
+        when(response.getWriter()).thenReturn(new PrintWriter(out));
+
+        boolean handled = dispatcher.preHandle(request, response, new Object());
+        assertFalse(handled, "preHandle should handle the mock request and return false");
+
+        ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+
+        assertEquals(successRoute.getId(), captor.getValue().getResourceId(),
+                "Route matching ?VM=AV must succeed without requiring Content-Type header");
+        assertTrue(out.toString().contains("<response_code>0</response_code>"),
+                "Output response must contain response_code 0 (Success)");
+    }
+
     // =========================================================================
     // Gate 6: XML Dynamic Echo Execution & 10-Digit Epoch Seconds Timestamp
     // =========================================================================
