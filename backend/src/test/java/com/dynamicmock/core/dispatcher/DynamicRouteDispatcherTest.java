@@ -326,6 +326,225 @@ class DynamicRouteDispatcherTest {
         verify(response).setHeader("Access-Control-Allow-Origin", "*");
         verify(response).setStatus(HttpServletResponse.SC_OK);
     }
+
+    @Test
+    void preHandle_shouldSelectRouteWithHigherPriority() throws Exception {
+        // Given
+        when(request.getRequestURI()).thenReturn("/mock/priority-test");
+        when(request.getMethod()).thenReturn("GET");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute lowPriority = MockRoute.builder()
+                .id("r-low")
+                .path("/mock/priority-test")
+                .method("GET")
+                .priority(1)
+                .responseStatus(200)
+                .build();
+        MockRoute highPriority = MockRoute.builder()
+                .id("r-high")
+                .path("/mock/priority-test")
+                .method("GET")
+                .priority(10)
+                .responseStatus(200)
+                .build();
+
+        RouteRegistry.RouteMatch matchLow = RouteRegistry.RouteMatch.builder().route(lowPriority).pathVariables(Map.of()).build();
+        RouteRegistry.RouteMatch matchHigh = RouteRegistry.RouteMatch.builder().route(highPriority).pathVariables(Map.of()).build();
+
+        // Registry returns low first
+        when(routeRegistry.findRoutes("GET", "/priority-test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(matchLow, matchHigh)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+
+        // When
+        dispatcher.preHandle(request, response, new Object());
+
+        // Then: high priority route should be matched first
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("r-high", captor.getValue().getResourceId());
+    }
+
+    @Test
+    void preHandle_shouldSelectRouteWithMoreConstraintsWhenPriorityEqual() throws Exception {
+        // Given
+        when(request.getRequestURI()).thenReturn("/mock/constraint-test");
+        when(request.getMethod()).thenReturn("GET");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute oneConstraint = MockRoute.builder()
+                .id("r-one")
+                .path("/mock/constraint-test")
+                .method("GET")
+                .priority(0)
+                .matchers(Map.of("queryParams", Map.of("VM", "AV")))
+                .responseStatus(200)
+                .build();
+        MockRoute twoConstraints = MockRoute.builder()
+                .id("r-two")
+                .path("/mock/constraint-test")
+                .method("GET")
+                .priority(0)
+                .matchers(Map.of("queryParams", Map.of("VM", "AV"), "headers", Map.of("Content-Type", "application/xml")))
+                .responseStatus(200)
+                .build();
+
+        RouteRegistry.RouteMatch matchOne = RouteRegistry.RouteMatch.builder().route(oneConstraint).pathVariables(Map.of()).build();
+        RouteRegistry.RouteMatch matchTwo = RouteRegistry.RouteMatch.builder().route(twoConstraints).pathVariables(Map.of()).build();
+
+        when(routeRegistry.findRoutes("GET", "/constraint-test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(matchOne, matchTwo)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+
+        // When
+        dispatcher.preHandle(request, response, new Object());
+
+        // Then: route with 2 constraints should win over 1 constraint
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("r-two", captor.getValue().getResourceId());
+    }
+
+    @Test
+    void preHandle_shouldSelectRouteDeterministicallyWhenConstraintsEqual_BankSmartProofCase() throws Exception {
+        // BankSmart Proof Case: ?VM=AV&ACC=0000000000
+        // Route A: VM=AV (signature q=VM=AV)
+        // Route B: ACC=0000000000 (signature q=ACC=0000000000)
+        // ACC sorts before VM lexicographically -> Route B (Dormant Account) must win
+        when(request.getRequestURI()).thenReturn("/mock/mbank-verification");
+        when(request.getMethod()).thenReturn("GET");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute routeA = MockRoute.builder()
+                .id("route-vm-av")
+                .path("/mock/mbank-verification")
+                .method("GET")
+                .priority(0)
+                .matchers(Map.of("queryParams", Map.of("VM", "AV")))
+                .responseStatus(200)
+                .build();
+        MockRoute routeB = MockRoute.builder()
+                .id("route-acc-dormant")
+                .path("/mock/mbank-verification")
+                .method("GET")
+                .priority(0)
+                .matchers(Map.of("queryParams", Map.of("ACC", "0000000000")))
+                .responseStatus(200)
+                .build();
+
+        RouteRegistry.RouteMatch matchA = RouteRegistry.RouteMatch.builder().route(routeA).pathVariables(Map.of()).build();
+        RouteRegistry.RouteMatch matchB = RouteRegistry.RouteMatch.builder().route(routeB).pathVariables(Map.of()).build();
+
+        // Registry returns routeA first
+        when(routeRegistry.findRoutes("GET", "/mbank-verification")).thenReturn(new java.util.ArrayList<>(java.util.List.of(matchA, matchB)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+
+        // When
+        dispatcher.preHandle(request, response, new Object());
+
+        // Then: routeB (Dormant Account) wins due to deterministic tie-breaking (ACC < VM)
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("route-acc-dormant", captor.getValue().getResourceId());
+    }
+
+    @Test
+    void preHandle_shouldSelectRouteByMockResponseNameHeader() throws Exception {
+        when(request.getRequestURI()).thenReturn("/mock/named-test");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("x-mock-response-name")).thenReturn("BankSmart Switch Verification");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute route1 = MockRoute.builder()
+                .id("r1")
+                .path("/mock/named-test")
+                .method("GET")
+                .metadata(Map.of("exampleName", "BankSmart Portal Success Page"))
+                .responseStatus(200)
+                .build();
+        MockRoute route2 = MockRoute.builder()
+                .id("r2")
+                .path("/mock/named-test")
+                .method("GET")
+                .metadata(Map.of("exampleName", "BankSmart Switch Verification"))
+                .responseStatus(200)
+                .build();
+
+        RouteRegistry.RouteMatch match1 = RouteRegistry.RouteMatch.builder().route(route1).pathVariables(Map.of()).build();
+        RouteRegistry.RouteMatch match2 = RouteRegistry.RouteMatch.builder().route(route2).pathVariables(Map.of()).build();
+
+        when(routeRegistry.findRoutes("GET", "/named-test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(match1, match2)));
+
+        dispatcher.preHandle(request, response, new Object());
+
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("r2", captor.getValue().getResourceId());
+    }
+
+    @Test
+    void preHandle_shouldFilterRoutesByMockResponseCodeHeader() throws Exception {
+        when(request.getRequestURI()).thenReturn("/mock/code-test");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("x-mock-response-code")).thenReturn("404");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute route200 = MockRoute.builder()
+                .id("r-200")
+                .path("/mock/code-test")
+                .method("GET")
+                .responseStatus(200)
+                .build();
+        MockRoute route404 = MockRoute.builder()
+                .id("r-404")
+                .path("/mock/code-test")
+                .method("GET")
+                .responseStatus(404)
+                .build();
+
+        RouteRegistry.RouteMatch match200 = RouteRegistry.RouteMatch.builder().route(route200).pathVariables(Map.of()).build();
+        RouteRegistry.RouteMatch match404 = RouteRegistry.RouteMatch.builder().route(route404).pathVariables(Map.of()).build();
+
+        when(routeRegistry.findRoutes("GET", "/code-test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(match200, match404)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+
+        dispatcher.preHandle(request, response, new Object());
+
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("r-404", captor.getValue().getResourceId());
+    }
+
+    @Test
+    void preHandle_shouldFallbackWhenMockResponseNameNotFound() throws Exception {
+        when(request.getRequestURI()).thenReturn("/mock/fallback-test");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("x-mock-response-name")).thenReturn("NonExistentExample");
+        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        MockRoute route = MockRoute.builder()
+                .id("r-fallback")
+                .path("/mock/fallback-test")
+                .method("GET")
+                .responseStatus(200)
+                .build();
+
+        RouteRegistry.RouteMatch match = RouteRegistry.RouteMatch.builder().route(route).pathVariables(Map.of()).build();
+        when(routeRegistry.findRoutes("GET", "/fallback-test")).thenReturn(new java.util.ArrayList<>(java.util.List.of(match)));
+        when(requestMatcher.matches(any(), any(), any())).thenReturn(true);
+
+        dispatcher.preHandle(request, response, new Object());
+
+        org.mockito.ArgumentCaptor<com.dynamicmock.application.service.TrafficLogger.ExecutionEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.dynamicmock.application.service.TrafficLogger.ExecutionEvent.class);
+        verify(trafficLogger).log(captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("r-fallback", captor.getValue().getResourceId());
+    }
 }
+
 
 

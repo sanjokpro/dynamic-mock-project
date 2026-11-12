@@ -106,18 +106,86 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
             return false; // Stop processing
         }
         
-        // Sort matches by number of matchers descending (specificity)
-        matches.sort((m1, m2) -> {
-            int size1 = m1.getRoute().getMatchers() != null ? m1.getRoute().getMatchers().size() : 0;
-            int size2 = m2.getRoute().getMatchers() != null ? m2.getRoute().getMatchers().size() : 0;
-            return Integer.compare(size2, size1); // Descending
-        });
-        
+        // Postman routing headers
+        String mockResponseName = request.getHeader("x-mock-response-name");
+        String mockResponseCode = request.getHeader("x-mock-response-code");
+        String mockMatchBody = request.getHeader("x-mock-match-request-body");
+
+        // Rule 1: Explicit Postman Routing Header x-mock-response-name (Highest Override)
         RouteRegistry.RouteMatch match = null;
-        for (RouteRegistry.RouteMatch candidate : matches) {
-            if (requestMatcher.matches(request, candidate.getRoute(), requestBody)) {
-                match = candidate;
-                break;
+        if (mockResponseName != null && !mockResponseName.isBlank()) {
+            String targetName = mockResponseName.trim();
+            for (RouteRegistry.RouteMatch candidate : matches) {
+                MockRoute r = candidate.getRoute();
+                if (r.getMetadata() != null) {
+                    String exName = r.getMetadata().get("exampleName");
+                    String itName = r.getMetadata().get("itemName");
+                    if ((exName != null && exName.equalsIgnoreCase(targetName))
+                            || (itName != null && itName.equalsIgnoreCase(targetName))) {
+                        match = candidate;
+                        log.debug("Selected route {} via x-mock-response-name '{}'", r.getId(), targetName);
+                        break;
+                    }
+                }
+            }
+            if (match == null) {
+                log.debug("x-mock-response-name '{}' did not match any candidate route; falling back to matcher evaluation", targetName);
+            }
+        }
+
+        if (match == null) {
+            java.util.List<RouteRegistry.RouteMatch> candidates = new java.util.ArrayList<>(matches);
+
+            // Filter by x-mock-response-code if supplied
+            if (mockResponseCode != null && !mockResponseCode.isBlank()) {
+                try {
+                    int targetCode = Integer.parseInt(mockResponseCode.trim());
+                    java.util.List<RouteRegistry.RouteMatch> codeMatches = candidates.stream()
+                            .filter(c -> c.getRoute().getResponseStatus() != null && c.getRoute().getResponseStatus() == targetCode)
+                            .toList();
+                    if (!codeMatches.isEmpty()) {
+                        candidates = new java.util.ArrayList<>(codeMatches);
+                    } else {
+                        log.debug("x-mock-response-code {} did not match any candidate; falling back to all candidates", targetCode);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            // Deterministic sort: Priority DESC, Satisfied constraint count DESC, Matcher signature ASC, Route ID ASC
+            candidates.sort((m1, m2) -> {
+                MockRoute r1 = m1.getRoute();
+                MockRoute r2 = m2.getRoute();
+
+                // 1. Priority DESC
+                int p1 = r1.getPriority() != null ? r1.getPriority() : 0;
+                int p2 = r2.getPriority() != null ? r2.getPriority() : 0;
+                int pCmp = Integer.compare(p2, p1);
+                if (pCmp != 0) return pCmp;
+
+                // 2. Number of satisfied exact constraints DESC
+                int c1 = countRouteConstraints(r1);
+                int c2 = countRouteConstraints(r2);
+                int cCmp = Integer.compare(c2, c1);
+                if (cCmp != 0) return cCmp;
+
+                // 3. Stable normalized matcher signature ASC (lexicographical)
+                String s1 = getNormalizedMatcherSignature(r1);
+                String s2 = getNormalizedMatcherSignature(r2);
+                int sCmp = s1.compareTo(s2);
+                if (sCmp != 0) return sCmp;
+
+                // 4. Stable tie-breaker: Route ID ASC
+                String id1 = r1.getId() != null ? r1.getId() : "";
+                String id2 = r2.getId() != null ? r2.getId() : "";
+                return id1.compareTo(id2);
+            });
+
+            for (RouteRegistry.RouteMatch candidate : candidates) {
+                if (requestMatcher.matches(request, candidate.getRoute(), requestBody)) {
+                    match = candidate;
+                    break;
+                }
             }
         }
         
@@ -597,6 +665,46 @@ public class DynamicRouteDispatcher implements HandlerInterceptor {
         } else {
             log.warn("No response body to send");
         }
+    }
+
+    private int countRouteConstraints(MockRoute route) {
+        if (route == null || route.getMatchers() == null) return 0;
+        int count = 0;
+        Object qp = route.getMatchers().get("queryParams");
+        if (qp instanceof Map<?, ?> qm) {
+            count += qm.size();
+        }
+        Object hdrs = route.getMatchers().get("headers");
+        if (hdrs instanceof Map<?, ?> hm) {
+            count += hm.size();
+        }
+        Object body = route.getMatchers().get("body");
+        if (body != null) {
+            count += 1;
+        }
+        return count;
+    }
+
+    private String getNormalizedMatcherSignature(MockRoute route) {
+        if (route == null || route.getMatchers() == null) return "";
+        StringBuilder sb = new StringBuilder();
+        Object qp = route.getMatchers().get("queryParams");
+        if (qp instanceof Map<?, ?> qm) {
+            java.util.List<String> sorted = qm.entrySet().stream()
+                    .map(e -> String.valueOf(e.getKey()) + "=" + String.valueOf(e.getValue()))
+                    .sorted()
+                    .toList();
+            sb.append("q=").append(String.join("&", sorted));
+        }
+        Object hdrs = route.getMatchers().get("headers");
+        if (hdrs instanceof Map<?, ?> hm) {
+            java.util.List<String> sorted = hm.entrySet().stream()
+                    .map(e -> String.valueOf(e.getKey()).toLowerCase() + ":" + String.valueOf(e.getValue()))
+                    .sorted()
+                    .toList();
+            sb.append("&h=").append(String.join("|", sorted));
+        }
+        return sb.toString();
     }
 
     private boolean isBlockingWebhook(Map<String, Object> webhookConfig) {
