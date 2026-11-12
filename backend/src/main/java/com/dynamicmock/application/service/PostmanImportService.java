@@ -213,6 +213,28 @@ public class PostmanImportService {
         }
     }
 
+    /**
+     * Translate Postman-specific template variables during import so that
+     * Postman-imported templates produce semantically correct output in Dynamic Mock.
+     *
+     * <p>Specifically: Postman's {@code {{$timestamp}}} is documented as 10-digit epoch seconds,
+     * whereas Dynamic Mock's native {@code {{$timestamp}}} produces 13-digit epoch milliseconds.
+     * During import we rewrite Postman's variant to {@code {{$timestampSeconds}}} so the imported
+     * route behaves identically to Postman without changing the native Dynamic Mock helper.
+     *
+     * <p>Only called during Postman collection import — never applied to native Dynamic Mock routes.
+     */
+    public String translatePostmanTemplate(String template) {
+        if (template == null || template.isEmpty()) return template;
+        // Replace {{$timestamp}} (with optional whitespace) → {{$timestampSeconds}}.
+        // Use Matcher.quoteReplacement so that the '$' in the replacement string is
+        // treated literally and does not trigger a Java backreference lookup.
+        return template.replaceAll(
+                "\\{\\{\\s*\\$timestamp\\s*\\}\\}",
+                java.util.regex.Matcher.quoteReplacement("{{$timestampSeconds}}")
+        );
+    }
+
     private void importRequest(Item item, String collectionId, String folderPrefix, ImportReport report) {
         String displayName = folderPrefix.isEmpty()
                 ? safeName(item)
@@ -253,7 +275,9 @@ public class PostmanImportService {
             Integer responseStatus;
             Map<String, String> responseHeaders;
             if (example != null) {
-                responseTemplate = example.getBody() != null ? example.getBody() : DEFAULT_RESPONSE_TEMPLATE;
+                responseTemplate = example.getBody() != null
+                        ? translatePostmanTemplate(example.getBody())
+                        : DEFAULT_RESPONSE_TEMPLATE;
                 responseStatus = example.getCode();
                 responseHeaders = headersToMap(example.getHeader());
             } else {

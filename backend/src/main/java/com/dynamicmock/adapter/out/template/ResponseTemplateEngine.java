@@ -176,6 +176,41 @@ public class ResponseTemplateEngine {
             RandomDataFunctions.randomLastName()
         );
 
+        // ===== Postman-compatible timestamp helpers =====
+        // $timestampSeconds: 10-digit epoch seconds (Postman semantics)
+        handlebars.registerHelper("$timestampSeconds", (context, options) ->
+            RandomDataFunctions.timestampSeconds()
+        );
+
+        // $postmanTimestamp: alias for $timestampSeconds, matches Postman {{$timestamp}} semantics
+        handlebars.registerHelper("$postmanTimestamp", (context, options) ->
+            RandomDataFunctions.timestampSeconds()
+        );
+
+        // $queryParams 'PARAM_NAME' - reads an incoming request query parameter.
+        // In Handlebars.java the helper lambda signature is (context, options) where
+        // 'context' IS the first positional argument supplied to the helper call, i.e.
+        // {{$queryParams 'ACC'}} → context = "ACC", options.params = [].
+        // Returns empty string when the parameter is absent or no request context exists.
+        handlebars.registerHelper("$queryParams", (context, options) -> {
+            if (context == null) {
+                return "";
+            }
+            String paramName = String.valueOf(context);
+            Object model = options.context.model();
+            if (model instanceof Map<?, ?> contextMap) {
+                Object requestObj = contextMap.get("request");
+                if (requestObj instanceof Map<?, ?> requestMap) {
+                    Object qpObj = requestMap.get("queryParams");
+                    if (qpObj instanceof Map<?, ?> qpMap && qpMap.containsKey(paramName)) {
+                        Object val = qpMap.get(paramName);
+                        return val != null ? val.toString() : "";
+                    }
+                }
+            }
+            return "";
+        });
+
         // Register conditional helpers
         handlebars.registerHelpers(ConditionalHelpers.class);
     }
