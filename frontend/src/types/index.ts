@@ -32,6 +32,8 @@ export interface MockRoute extends PlatformResource {
   version?: number;
   active?: boolean;
   scenarioName?: string;
+  priority?: number;
+  metadata?: Record<string, string>;
 }
 
 export interface CollectionItem {
@@ -39,6 +41,9 @@ export interface CollectionItem {
   protocol: Protocol;
   resourceId: string;
   name: string;
+  parentItemId?: string;
+  itemType?: 'REQUEST' | 'EXAMPLE';
+  matchSummary?: Record<string, string>;
 }
 
 export interface Collection {

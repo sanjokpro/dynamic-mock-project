@@ -32,6 +32,9 @@ public class CollectionResponse {
         private String protocol;
         private String resourceId;
         private String name;
+        private String parentItemId;
+        private String itemType;
+        private java.util.Map<String, String> matchSummary;
     }
 
     public static CollectionResponse from(Collection domain) {
@@ -46,6 +49,9 @@ public class CollectionResponse {
                                 .protocol(item.getProtocol())
                                 .resourceId(item.getResourceId())
                                 .name(item.getName())
+                                .parentItemId(item.getParentItemId())
+                                .itemType(item.getItemType())
+                                .matchSummary(item.getMatchSummary())
                                 .build())
                         .collect(Collectors.toList()))
                 .createdAt(domain.getCreatedAt())

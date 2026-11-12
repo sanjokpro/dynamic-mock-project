@@ -30,5 +30,8 @@ public class Collection {
         private String protocol; // HTTP, GRAPHQL, GRPC, ISO8583
         private String resourceId;
         private String name;
+        private String parentItemId; // Grouping ID for request item
+        private String itemType; // "REQUEST" or "EXAMPLE"
+        private java.util.Map<String, String> matchSummary; // e.g. {"VM": "AV"}
     }
 }

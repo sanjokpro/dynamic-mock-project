@@ -325,7 +325,7 @@ public class PostmanImportService {
                 RouteResponse created = routeService.createRoute(createRequest);
                 routeService.activateRoute(created.getId());
 
-                addItemToCollectionIfNotPresent(collectionId, created.getId(), displayName);
+                addItemToCollectionIfNotPresent(collectionId, created.getId(), displayName, null, "REQUEST", extractMatchSummary(matchers));
                 report.setRoutes(report.getRoutes() + 1);
             } else {
                 // Detect ambiguous matchers among examples for the same method/path
@@ -392,7 +392,8 @@ public class PostmanImportService {
                     String collectionItemName = examples.size() > 1 && !displayName.equalsIgnoreCase(exampleName)
                             ? displayName + " - " + exampleName
                             : displayName;
-                    addItemToCollectionIfNotPresent(collectionId, created.getId(), collectionItemName);
+                    addItemToCollectionIfNotPresent(collectionId, created.getId(), collectionItemName,
+                            displayName, "EXAMPLE", extractMatchSummary(matchers));
                     report.setRoutes(report.getRoutes() + 1);
                 }
             }
@@ -402,7 +403,8 @@ public class PostmanImportService {
         }
     }
 
-    private void addItemToCollectionIfNotPresent(String collectionId, String routeId, String itemName) {
+    private void addItemToCollectionIfNotPresent(String collectionId, String routeId, String itemName,
+                                                 String parentItemId, String itemType, Map<String, String> matchSummary) {
         try {
             Collection target = collectionService.getCollection(collectionId);
             if (target != null && target.getItems() != null) {
@@ -416,10 +418,24 @@ public class PostmanImportService {
                     .protocol("HTTP")
                     .resourceId(routeId)
                     .name(itemName)
+                    .parentItemId(parentItemId)
+                    .itemType(itemType)
+                    .matchSummary(matchSummary)
                     .build());
         } catch (Exception e) {
             log.warn("Could not register route {} in collection {}: {}", routeId, collectionId, e.getMessage());
         }
+    }
+
+    private Map<String, String> extractMatchSummary(Map<String, Object> matchers) {
+        Map<String, String> summary = new LinkedHashMap<>();
+        if (matchers != null) {
+            Object qp = matchers.get("queryParams");
+            if (qp instanceof Map<?, ?> qm) {
+                qm.forEach((k, v) -> summary.put(String.valueOf(k), String.valueOf(v)));
+            }
+        }
+        return summary.isEmpty() ? null : summary;
     }
 
     private void checkAndReportAmbiguities(String displayName, String method, String path,

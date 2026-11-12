@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Folder, FolderOpen, Plus, Search, Settings, Loader2, Inbox, Globe, ChevronRight, ChevronDown, Sun, Moon, GitBranch, Server, Edit2, Copy, Trash2, X, Landmark } from 'lucide-react';
+import { Folder, FolderOpen, Plus, Search, Settings, Loader2, Inbox, Globe, ChevronRight, ChevronDown, Sun, Moon, GitBranch, Server, Edit2, Copy, Trash2, X, Landmark, FileText } from 'lucide-react';
 import { useCollections } from '@/hooks/useCollections';
 import { useRoutes } from '@/hooks/useRoutes';
 import { useWorkspace } from '@/context/WorkspaceContext';
@@ -33,6 +33,7 @@ export function Sidebar() {
   const { confirm, prompt } = useDialogs();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [moveRouteMode, setMoveRouteMode] = useState<{ sourceCollection: any, item: any } | null>(null);
   const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
 
@@ -43,6 +44,24 @@ export function Sidebar() {
       else next.add(id);
       return next;
     });
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const getFormatBadge = (headers?: Record<string, string>) => {
+    if (!headers) return null;
+    const ct = Object.entries(headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1]?.toLowerCase() || '';
+    if (ct.includes('html')) return 'HTML';
+    if (ct.includes('xml')) return 'XML';
+    if (ct.includes('json')) return 'JSON';
+    return null;
   };
 
   // Restore active route from localStorage on reload
@@ -353,45 +372,154 @@ export function Sidebar() {
                   </button>
                   {isExpanded && collection.items && collection.items.length > 0 && (
                     <div className="ml-4 border-l border-border pl-1.5 space-y-0.5 mt-0.5">
-                      {collection.items.map((item) => {
-                        const route = routes.find(r => r.id === item.resourceId);
-                        return (
-                          <div key={item.id} className="flex items-center group/item w-full">
-                            <button
-                              onClick={() => handleSelectRoute(item.resourceId)}
-                              className={cn(
-                                "flex items-center gap-2 flex-1 px-2 py-1 text-xs rounded-sm transition-colors text-left",
-                                activeRoute?.id === item.resourceId
-                                  ? "bg-accent text-foreground"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                              )}
-                            >
-                              {route?.method ? (
-                                <span className={cn("font-bold text-[10px] w-10 shrink-0 uppercase tabular-nums", METHOD_COLORS[route.method] || 'text-blue-500')}>
-                                  {route.method}
+                      {(() => {
+                        const groups = new Map<string, { key: string; name: string; method?: string; items: typeof collection.items }>();
+
+                        for (const item of collection.items) {
+                          const route = routes.find(r => r.id === item.resourceId);
+                          const groupKey = item.parentItemId || (route ? `${route.method}:${route.path}` : item.name);
+                          if (!groups.has(groupKey)) {
+                            groups.set(groupKey, {
+                              key: groupKey,
+                              name: item.parentItemId || (route ? route.path : item.name),
+                              method: route?.method,
+                              items: [],
+                            });
+                          }
+                          groups.get(groupKey)!.items.push(item);
+                        }
+
+                        return Array.from(groups.values()).map(group => {
+                          const isMultiVariant = group.items.length > 1 || group.items.some(i => i.itemType === 'EXAMPLE');
+                          const groupFullId = `${collection.id}:${group.key}`;
+                          const isGroupExpanded = expandedGroups.has(groupFullId);
+
+                          if (!isMultiVariant && group.items.length === 1) {
+                            const item = group.items[0];
+                            const route = routes.find(r => r.id === item.resourceId);
+                            return (
+                              <div key={item.id} className="flex items-center group/item w-full">
+                                <button
+                                  onClick={() => handleSelectRoute(item.resourceId)}
+                                  className={cn(
+                                    "flex items-center gap-2 flex-1 px-2 py-1 text-xs rounded-sm transition-colors text-left",
+                                    activeRoute?.id === item.resourceId
+                                      ? "bg-accent text-foreground"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                  )}
+                                >
+                                  {route?.method ? (
+                                    <span className={cn("font-bold text-[10px] w-10 shrink-0 uppercase tabular-nums", METHOD_COLORS[route.method] || 'text-blue-500')}>
+                                      {route.method}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] w-10 shrink-0 uppercase text-muted-foreground">{item.protocol}</span>
+                                  )}
+                                  <span className="truncate">{item.name}</span>
+                                </button>
+                                <div className="flex items-center opacity-0 group-hover/item:opacity-100 pr-1">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setMoveRouteMode({ sourceCollection: collection, item }); }}
+                                    className="p-0.5 text-muted-foreground hover:text-foreground rounded" title="Move Route"
+                                  >
+                                    <Folder className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleRemoveItem(collection, item.id); }}
+                                    className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Remove from Collection"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={group.key} className="flex flex-col">
+                              <button
+                                onClick={() => toggleGroup(groupFullId)}
+                                className="flex items-center gap-1.5 w-full px-2 py-1 text-xs rounded-sm hover:bg-accent/40 transition-colors text-left group/grp"
+                              >
+                                {isGroupExpanded ? (
+                                  <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                )}
+                                {group.method && (
+                                  <span className={cn("font-bold text-[10px] w-9 shrink-0 uppercase tabular-nums", METHOD_COLORS[group.method] || 'text-blue-500')}>
+                                    {group.method}
+                                  </span>
+                                )}
+                                <span className="flex-1 truncate font-medium text-foreground text-[11px]">{group.name}</span>
+                                <span className="text-[9px] px-1 py-0.2 bg-muted text-muted-foreground rounded font-mono shrink-0">
+                                  {group.items.length}
                                 </span>
-                              ) : (
-                                <span className="text-[10px] w-10 shrink-0 uppercase text-muted-foreground">{item.protocol}</span>
+                              </button>
+
+                              {isGroupExpanded && (
+                                <div className="ml-3 border-l border-border/60 pl-2 space-y-0.5 mt-0.5">
+                                  {group.items.map(item => {
+                                    const route = routes.find(r => r.id === item.resourceId);
+                                    const status = route?.responseStatus || 200;
+                                    const format = getFormatBadge(route?.responseHeaders);
+                                    const matchTag = item.matchSummary
+                                      ? Object.entries(item.matchSummary).map(([k, v]) => `${k}=${v}`).join('&')
+                                      : null;
+
+                                    let variantName = item.name;
+                                    if (group.name && variantName.startsWith(group.name + " - ")) {
+                                      variantName = variantName.substring(group.name.length + 3);
+                                    }
+
+                                    return (
+                                      <div key={item.id} className="flex items-center group/var w-full">
+                                        <button
+                                          onClick={() => handleSelectRoute(item.resourceId)}
+                                          className={cn(
+                                            "flex items-center gap-1.5 flex-1 px-1.5 py-1 text-xs rounded-sm transition-colors text-left",
+                                            activeRoute?.id === item.resourceId
+                                              ? "bg-accent text-foreground"
+                                              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                          )}
+                                        >
+                                          <FileText className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                                          <span className="truncate flex-1 text-[11px]">{variantName}</span>
+                                          {matchTag && (
+                                            <span className="text-[9px] px-1 py-0.2 bg-blue-500/10 text-blue-500 rounded font-mono shrink-0" title={`Matcher: ${matchTag}`}>
+                                              [{matchTag}]
+                                            </span>
+                                          )}
+                                          <span className={cn(
+                                            "text-[9px] px-1 py-0.2 rounded font-mono shrink-0 font-semibold",
+                                            status >= 200 && status < 300 ? "bg-emerald-500/10 text-emerald-500" :
+                                            status >= 400 ? "bg-red-500/10 text-red-500" : "bg-muted text-muted-foreground"
+                                          )}>
+                                            {status}
+                                          </span>
+                                          {format && (
+                                            <span className="text-[8px] px-1 py-0.2 bg-muted text-muted-foreground rounded uppercase font-bold shrink-0">
+                                              {format}
+                                            </span>
+                                          )}
+                                        </button>
+                                        <div className="flex items-center opacity-0 group-hover/var:opacity-100 pr-1">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleRemoveItem(collection, item.id); }}
+                                            className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Remove from Collection"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
-                              <span className="truncate">{item.name}</span>
-                            </button>
-                            <div className="flex items-center opacity-0 group-hover/item:opacity-100 pr-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setMoveRouteMode({ sourceCollection: collection, item }); }}
-                                className="p-0.5 text-muted-foreground hover:text-foreground rounded" title="Move Route"
-                              >
-                                <Folder className="h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleRemoveItem(collection, item.id); }}
-                                className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Remove from Collection"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>

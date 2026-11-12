@@ -1,0 +1,219 @@
+{
+  "info": {
+    "_postman_id": "9ea4acf5-fbbc-4be7-9ae1-4db7195aa337",
+    "name": "eSewa-BankSmart-Mock",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "764985",
+    "_collection_link": "https://go.postman.co/collection/764985-9ea4acf5-fbbc-4be7-9ae1-4db7195aa337?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "BankSmart portal web view",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://c90ddef4-9994-4294-a77b-08302c92a765.mock.pstmn.io/mbank-verification?UID=VkZTQVE=&ACC=9801879262&RU=http://10.13.194.23:2080/api/web/account_link/return_request&VM=AC&PID=1010&IVK=THIRD_PARTY",
+          "protocol": "https",
+          "host": [
+            "c90ddef4-9994-4294-a77b-08302c92a765",
+            "mock",
+            "pstmn",
+            "io"
+          ],
+          "path": [
+            "mbank-verification"
+          ],
+          "query": [
+            {
+              "key": "UID",
+              "value": "VkZTQVE="
+            },
+            {
+              "key": "ACC",
+              "value": "9801879262"
+            },
+            {
+              "key": "RU",
+              "value": "http://10.13.194.23:2080/api/web/account_link/return_request"
+            },
+            {
+              "key": "VM",
+              "value": "AC"
+            },
+            {
+              "key": "PID",
+              "value": "1010"
+            },
+            {
+              "key": "IVK",
+              "value": "THIRD_PARTY"
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "BankSmart Portal Success Page",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/html; charset=utf-8",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "https://c90ddef4-9994-4294-a77b-08302c92a765.mock.pstmn.io/mbank-verification/?VM=AC",
+              "protocol": "https",
+              "host": [
+                "c90ddef4-9994-4294-a77b-08302c92a765",
+                "mock",
+                "pstmn",
+                "io"
+              ],
+              "path": [
+                "mbank-verification",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "VM",
+                  "value": "AC"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "html",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "Content-Type: text/html; charset=utf-8"
+            }
+          ],
+          "cookie": [],
+          "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">\n  <title>BankSmart Secure Authentication</title>\n  <style>\n    :root {\n      --primary: #107c41;\n      --primary-dark: #0b582e;\n      --primary-light: #e8f5e9;\n      --secondary: #003366;\n      --accent: #2563eb;\n      --danger: #dc2626;\n      --bg: #f3f5f8;\n      --card-bg: #ffffff;\n      --text-main: #1f2937;\n      --text-muted: #64748b;\n      --border: #e2e8f0;\n      --radius: 12px;\n    }\n\n    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif; }\n\n    body {\n      background-color: var(--bg);\n      color: var(--text-main);\n      min-height: 100vh;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: flex-start;\n      padding: 16px;\n    }\n\n    .container {\n      width: 100%;\n      max-width: 440px;\n      margin: 0 auto;\n    }\n\n    /* Bank Header Bar */\n    .bank-header {\n      background: linear-gradient(135deg, #0f3b25, #137742);\n      color: #ffffff;\n      border-radius: var(--radius) var(--radius) 0 0;\n      padding: 20px 20px 18px;\n      position: relative;\n      overflow: hidden;\n      box-shadow: 0 4px 12px rgba(16, 124, 65, 0.15);\n    }\n    .bank-header::after {\n      content: \"\";\n      position: absolute;\n      right: -20px;\n      bottom: -20px;\n      width: 100px;\n      height: 100px;\n      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);\n      border-radius: 50%;\n    }\n    .header-top {\n      display: flex;\n      align-items: center;\n      justify-content: space-between;\n      margin-bottom: 8px;\n    }\n    .bank-logo {\n      display: flex;\n      align-items: center;\n      gap: 8px;\n      font-size: 17px;\n      font-weight: 700;\n      letter-spacing: 0.5px;\n    }\n    .bank-logo svg {\n      width: 24px;\n      height: 24px;\n      fill: #a3e635;\n    }\n    .secure-badge {\n      display: inline-flex;\n      align-items: center;\n      gap: 5px;\n      font-size: 11px;\n      background: rgba(255, 255, 255, 0.18);\n      backdrop-filter: blur(4px);\n      padding: 4px 8px;\n      border-radius: 20px;\n      font-weight: 500;\n      border: 1px solid rgba(255, 255, 255, 0.2);\n    }\n    .secure-badge svg {\n      width: 12px;\n      height: 12px;\n      fill: #ffffff;\n    }\n    .portal-subtitle {\n      font-size: 12px;\n      color: rgba(255, 255, 255, 0.85);\n      font-weight: 400;\n    }\n\n    /* Main Card */\n    .portal-card {\n      background: var(--card-bg);\n      border-radius: 0 0 var(--radius) var(--radius);\n      padding: 24px 20px 20px;\n      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);\n      border: 1px solid var(--border);\n      border-top: none;\n      margin-bottom: 16px;\n    }\n\n    /* Account Summary Box */\n    .info-card {\n      background: #f8fafc;\n      border: 1px solid #edf2f7;\n      border-radius: 10px;\n      padding: 14px 16px;\n      margin-bottom: 22px;\n    }\n    .info-row {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 6px 0;\n      font-size: 13px;\n    }\n    .info-row:not(:last-child) {\n      border-bottom: 1px dashed #e2e8f0;\n    }\n    .info-label {\n      color: var(--text-muted);\n      font-weight: 500;\n    }\n    .info-val {\n      color: var(--text-main);\n      font-weight: 600;\n      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;\n      letter-spacing: 0.3px;\n    }\n    .info-val.name-val {\n      font-family: inherit;\n    }\n\n    /* OTP Prompt */\n    .otp-prompt {\n      text-align: center;\n      margin-bottom: 18px;\n    }\n    .otp-title {\n      font-size: 15px;\n      font-weight: 700;\n      color: var(--text-main);\n      margin-bottom: 4px;\n    }\n    .otp-desc {\n      font-size: 12px;\n      color: var(--text-muted);\n      line-height: 1.4;\n    }\n    .otp-desc span {\n      color: var(--text-main);\n      font-weight: 600;\n    }\n\n    /* 6-Box OTP Input */\n    .otp-boxes-group {\n      display: flex;\n      justify-content: center;\n      gap: 8px;\n      margin: 16px 0 10px;\n    }\n    .otp-digit {\n      width: 44px;\n      height: 52px;\n      text-align: center;\n      font-size: 22px;\n      font-weight: 700;\n      color: var(--primary-dark);\n      background: #ffffff;\n      border: 1.5px solid #cbd5e1;\n      border-radius: 8px;\n      outline: none;\n      transition: all 0.2s ease;\n      caret-color: var(--primary);\n    }\n    .otp-digit:focus {\n      border-color: var(--primary);\n      box-shadow: 0 0 0 3px rgba(16, 124, 65, 0.15);\n      background: #fafdfa;\n    }\n    @media (max-width: 360px) {\n      .otp-digit {\n        width: 38px;\n        height: 46px;\n        font-size: 19px;\n        gap: 6px;\n      }\n    }\n\n    /* Resend Timer */\n    .resend-row {\n      display: flex;\n      justify-content: center;\n      align-items: center;\n      gap: 6px;\n      font-size: 12px;\n      color: var(--text-muted);\n      margin-bottom: 22px;\n    }\n    .resend-row a {\n      color: var(--primary);\n      text-decoration: none;\n      font-weight: 600;\n      cursor: pointer;\n    }\n\n    /* Action Buttons */\n    .actions-group {\n      display: flex;\n      flex-direction: column;\n      gap: 10px;\n    }\n    .btn {\n      width: 100%;\n      padding: 13px 16px;\n      font-size: 14px;\n      font-weight: 600;\n      border-radius: 8px;\n      border: none;\n      cursor: pointer;\n      display: flex;\n      align-items: center;\n      justify-content: center;\n      gap: 8px;\n      transition: background 0.2s, transform 0.05s;\n    }\n    .btn:active {\n      transform: scale(0.99);\n    }\n    .btn-approve {\n      background: linear-gradient(135deg, #107c41, #0b582e);\n      color: #ffffff;\n      box-shadow: 0 4px 10px rgba(16, 124, 65, 0.25);\n    }\n    .btn-approve:hover {\n      background: linear-gradient(135deg, #0e6e3a, #084323);\n    }\n    .btn-fail {\n      background: #ffffff;\n      color: var(--danger);\n      border: 1px solid #fecaca;\n    }\n    .btn-fail:hover {\n      background: #fef2f2;\n      border-color: #fca5a5;\n    }\n\n    /* Collapsible QA Settings Section */\n    .settings-accordion {\n      background: #ffffff;\n      border: 1px solid var(--border);\n      border-radius: var(--radius);\n      overflow: hidden;\n      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);\n      margin-bottom: 24px;\n    }\n    .settings-toggle {\n      width: 100%;\n      background: #f8fafc;\n      padding: 12px 16px;\n      border: none;\n      display: flex;\n      align-items: center;\n      justify-content: space-between;\n      cursor: pointer;\n      font-size: 13px;\n      font-weight: 600;\n      color: #475569;\n      border-bottom: 1px solid transparent;\n      transition: background 0.15s;\n    }\n    .settings-toggle:hover {\n      background: #f1f5f9;\n    }\n    .settings-toggle.open {\n      border-bottom-color: var(--border);\n    }\n    .settings-header-left {\n      display: flex;\n      align-items: center;\n      gap: 8px;\n    }\n    .qa-badge {\n      background: #dbeafe;\n      color: #1e40af;\n      font-size: 10px;\n      padding: 2px 6px;\n      border-radius: 4px;\n      font-weight: 700;\n      text-transform: uppercase;\n      letter-spacing: 0.5px;\n    }\n    .toggle-icon {\n      font-size: 11px;\n      color: #94a3b8;\n      transition: transform 0.2s;\n    }\n    .settings-toggle.open .toggle-icon {\n      transform: rotate(180deg);\n    }\n\n    .settings-content {\n      display: none;\n      padding: 16px;\n      background: #ffffff;\n    }\n    .settings-content.open {\n      display: block;\n    }\n    .settings-note {\n      font-size: 11px;\n      color: #64748b;\n      margin-bottom: 14px;\n      line-height: 1.4;\n      background: #fffbeb;\n      border: 1px solid #fef3c7;\n      padding: 8px 10px;\n      border-radius: 6px;\n    }\n\n    /* Form Controls */\n    .form-group {\n      margin-bottom: 12px;\n    }\n    .form-group label {\n      display: flex;\n      justify-content: space-between;\n      font-size: 12px;\n      font-weight: 600;\n      color: #334155;\n      margin-bottom: 4px;\n    }\n    .form-group label span.src {\n      font-size: 10px;\n      font-weight: 400;\n      color: #94a3b8;\n    }\n    .form-input, .form-select {\n      width: 100%;\n      padding: 8px 10px;\n      font-size: 13px;\n      border: 1px solid #cbd5e1;\n      border-radius: 6px;\n      color: #1e293b;\n      background: #ffffff;\n      outline: none;\n      transition: border-color 0.15s;\n    }\n    .form-input:focus, .form-select:focus {\n      border-color: var(--accent);\n      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);\n    }\n    .btn-save-cfg {\n      width: 100%;\n      padding: 9px;\n      font-size: 12px;\n      font-weight: 600;\n      background: #f1f5f9;\n      color: #334155;\n      border: 1px solid #cbd5e1;\n      border-radius: 6px;\n      cursor: pointer;\n      margin-top: 6px;\n      transition: all 0.15s;\n    }\n    .btn-save-cfg:hover {\n      background: #e2e8f0;\n      color: #0f172a;\n    }\n    .btn-reset-cfg {\n      width: 100%;\n      padding: 6px;\n      font-size: 11px;\n      color: #94a3b8;\n      background: none;\n      border: none;\n      cursor: pointer;\n      margin-top: 4px;\n      text-decoration: underline;\n    }\n\n    /* Footer */\n    .portal-footer {\n      text-align: center;\n      font-size: 11px;\n      color: #94a3b8;\n      line-height: 1.5;\n    }\n  </style>\n</head>\n<body>\n\n  <div class=\"container\">\n\n    <!-- Bank Header -->\n    <div class=\"bank-header\">\n      <div class=\"header-top\">\n        <div class=\"bank-logo\">\n          <svg viewBox=\"0 0 24 24\">\n            <path d=\"M12 2L2 7l10 5 10-5-10-5zm-8 8.18v6.64c0 4.14 8 6.18 8 6.18s8-2.04 8-6.18V10.2l-8 4-8-4.02z\"/>\n          </svg>\n          BankSmart\n        </div>\n        <div class=\"secure-badge\">\n          <svg viewBox=\"0 0 24 24\"><path d=\"M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z\"/></svg>\n          256-Bit SSL Secure\n        </div>\n      </div>\n      <div class=\"portal-subtitle\">Mobile Banking Account Linking Authorization</div>\n    </div>\n\n    <!-- Main Verification Card -->\n    <div class=\"portal-card\">\n\n      <!-- Dynamic Verification Overview -->\n      <div class=\"info-card\">\n        <div class=\"info-row\">\n          <span class=\"info-label\">Account No.</span>\n          <span class=\"info-val\" id=\"summary-acc\">--</span>\n        </div>\n        <div class=\"info-row\">\n          <span class=\"info-label\">Mobile No.</span>\n          <span class=\"info-val\" id=\"summary-mobile\">--</span>\n        </div>\n        <div class=\"info-row\">\n          <span class=\"info-label\">Account Name</span>\n          <span class=\"info-val name-val\" id=\"summary-name\">--</span>\n        </div>\n        <div class=\"info-row\">\n          <span class=\"info-label\">Link Mode</span>\n          <span class=\"info-val\" id=\"summary-process\" style=\"color:var(--primary); font-weight:700;\">BANK_SMART</span>\n        </div>\n      </div>\n\n      <!-- OTP Prompt -->\n      <div class=\"otp-prompt\">\n        <div class=\"otp-title\">One Time Password (OTP)</div>\n        <div class=\"otp-desc\">Enter the 6-digit verification code sent to your registered mobile number <span id=\"prompt-mobile\">********62</span></div>\n      </div>\n\n      <!-- 6 Individual OTP Boxes -->\n      <div class=\"otp-boxes-group\" id=\"otp-group\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-1\" value=\"1\" autocomplete=\"one-time-code\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-2\" value=\"2\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-3\" value=\"3\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-4\" value=\"4\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-5\" value=\"5\">\n        <input type=\"text\" inputmode=\"numeric\" maxlength=\"1\" class=\"otp-digit\" id=\"otp-6\" value=\"6\">\n      </div>\n\n      <!-- Resend Timer -->\n      <div class=\"resend-row\">\n        <span>Didn't receive SMS?</span>\n        <a onclick=\"resetOtp()\">Reset (123456)</a>\n      </div>\n\n      <!-- Action Buttons -->\n      <div class=\"actions-group\">\n        <button type=\"button\" class=\"btn btn-approve\" id=\"btn-approve\" onclick=\"handleAuthSubmit('SUCCESS')\">\n          <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z\"/></svg>\n          Approve & Authorize Link\n        </button>\n        <button type=\"button\" class=\"btn btn-fail\" id=\"btn-fail\" onclick=\"handleAuthSubmit('FAILED')\">\n          <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z\"/></svg>\n          Simulate Bank Failure\n        </button>\n      </div>\n\n    </div>\n\n    <!-- Collapsible QA Parameter Settings Panel -->\n    <div class=\"settings-accordion\">\n      <button type=\"button\" class=\"settings-toggle\" id=\"settings-toggle-btn\" onclick=\"toggleSettings()\">\n        <div class=\"settings-header-left\">\n          <span>⚙️ QA Parameter Configuration</span>\n          <span class=\"qa-badge\">Config / Cache</span>\n        </div>\n        <span class=\"toggle-icon\">▼</span>\n      </button>\n\n      <div class=\"settings-content\" id=\"settings-content\">\n        <div class=\"settings-note\">\n          Parameters from the URL query string load automatically. Missing parameters use cached values from previous QA runs. Edits persist across sessions.\n        </div>\n\n        <!-- 1. Mobile Number (first) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-mobile\">Mobile Number (MOBILE) <span class=\"src\" id=\"src-mobile\">cached</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-mobile\" placeholder=\"e.g. 9801879262\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 2. Account Number (second) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-acc\">Account Number (ACC) <span class=\"src\" id=\"src-acc\">from URL</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-acc\" placeholder=\"e.g. 9801879262\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 3. LINK_PROCESS dropdown (third) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-link-process\">Link Process (LINK_PROCESS) <span class=\"src\">enum</span></label>\n          <select class=\"form-select\" id=\"cfg-link-process\" onchange=\"onConfigChange()\">\n            <option value=\"BANK_SMART\" selected>BANK_SMART (Default)</option>\n            <option value=\"LEGACY\">LEGACY</option>\n            <option value=\"BANK_SMART\">BANK_SMART</option>\n            <option value=\"DIRECT\">DIRECT</option>\n            <option value=\"NPS_WITH_CHECKOUT_MODEL\">NPS_WITH_CHECKOUT_MODEL</option>\n            <option value=\"BANK_SMART_WITH_NPS\">BANK_SMART_WITH_NPS</option>\n            <option value=\"BANK_XP\">BANK_XP</option>\n            <option value=\"NMB\">NMB</option>\n          </select>\n        </div>\n\n        <!-- 4. Customer Name -->\n        <div class=\"form-group\">\n          <label for=\"cfg-name\">Customer Name (NAME) <span class=\"src\" id=\"src-name\">cached</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-name\" placeholder=\"e.g. RAM KHANAL\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 5. User ID (UID) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-uid\">Unique ID (UID) <span class=\"src\" id=\"src-uid\">from URL</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-uid\" placeholder=\"e.g. VkZTQVE=\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 6. Partner ID (PID) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-pid\">Partner / Bank ID (PID) <span class=\"src\" id=\"src-pid\">from URL</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-pid\" placeholder=\"e.g. 1010\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 7. Return URL (RU) -->\n        <div class=\"form-group\">\n          <label for=\"cfg-ru\">Return URL (RU) <span class=\"src\" id=\"src-ru\">from URL</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-ru\" placeholder=\"http://...\" oninput=\"onConfigChange()\">\n        </div>\n\n        <!-- 8. Session ID -->\n        <div class=\"form-group\">\n          <label for=\"cfg-se\">Session ID (SE) <span class=\"src\">optional</span></label>\n          <input type=\"text\" class=\"form-input\" id=\"cfg-se\" placeholder=\"MOCK-SESSION-123\" oninput=\"onConfigChange()\">\n        </div>\n\n        <button type=\"button\" class=\"btn-save-cfg\" onclick=\"saveConfigFeedback()\">Save to Cache</button>\n        <button type=\"button\" class=\"btn-reset-cfg\" onclick=\"resetToDefaults()\">Reset to Defaults</button>\n      </div>\n    </div>\n\n    <div class=\"portal-footer\">\n      Powered by BankSmart &bull; Fonepay Interoperability Gateway<br>\n      Authorized for eSewa QA Environment Testing\n    </div>\n\n  </div>\n\n  <script>\n    const STORAGE_KEY = 'esewa_banksmart_mock_qa_cfg_v1';\n\n    const DEFAULT_CONFIG = {\n      mobile: '9801879262',\n      acc: '9801879262',\n      linkProcess: 'BANK_SMART',\n      name: 'RAM KHANAL',\n      uid: 'VkZTQVE=',\n      pid: '1010',\n      ru: 'https://rc.esewa.com.np/api/web/account_link/return_request',\n      se: 'MOCK-SESSION-123'\n    };\n\n    function loadCachedConfig() {\n      try {\n        const raw = localStorage.getItem(STORAGE_KEY);\n        if (raw) return JSON.parse(raw);\n      } catch (e) {\n        console.warn('Storage unavailable or blocked:', e);\n      }\n      return {};\n    }\n\n    function saveCachedConfig(cfg) {\n      try {\n        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));\n      } catch (e) {\n        console.warn('Storage save failed:', e);\n      }\n    }\n\n    let activeConfig = {};\n\n    function initPortal() {\n      const urlParams = new URLSearchParams(window.location.search);\n      const cached = loadCachedConfig();\n\n      activeConfig = {\n        mobile: urlParams.get('MOBILE') || cached.mobile || DEFAULT_CONFIG.mobile,\n        acc: urlParams.get('ACC') || cached.acc || DEFAULT_CONFIG.acc,\n        linkProcess: urlParams.get('LINK_PROCESS') || cached.linkProcess || DEFAULT_CONFIG.linkProcess,\n        name: urlParams.get('NAME') || cached.name || DEFAULT_CONFIG.name,\n        uid: urlParams.get('UID') || cached.uid || DEFAULT_CONFIG.uid,\n        pid: urlParams.get('PID') || cached.pid || DEFAULT_CONFIG.pid,\n        ru: urlParams.get('RU') || cached.ru || DEFAULT_CONFIG.ru,\n        se: urlParams.get('SE') || cached.se || DEFAULT_CONFIG.se\n      };\n\n      document.getElementById('cfg-mobile').value = activeConfig.mobile;\n      document.getElementById('cfg-acc').value = activeConfig.acc;\n      document.getElementById('cfg-link-process').value = activeConfig.linkProcess;\n      document.getElementById('cfg-name').value = activeConfig.name;\n      document.getElementById('cfg-uid').value = activeConfig.uid;\n      document.getElementById('cfg-pid').value = activeConfig.pid;\n      document.getElementById('cfg-ru').value = activeConfig.ru;\n      document.getElementById('cfg-se').value = activeConfig.se;\n\n      if (urlParams.get('MOBILE')) document.getElementById('src-mobile').textContent = 'from URL';\n      if (urlParams.get('ACC')) document.getElementById('src-acc').textContent = 'from URL';\n      if (urlParams.get('NAME')) document.getElementById('src-name').textContent = 'from URL';\n      if (urlParams.get('UID')) document.getElementById('src-uid').textContent = 'from URL';\n      if (urlParams.get('PID')) document.getElementById('src-pid').textContent = 'from URL';\n      if (urlParams.get('RU')) document.getElementById('src-ru').textContent = 'from URL';\n\n      renderDisplaySummary();\n      setupOtpInputHandlers();\n    }\n\n    function renderDisplaySummary() {\n      document.getElementById('summary-acc').textContent = activeConfig.acc;\n      document.getElementById('summary-mobile').textContent = activeConfig.mobile;\n      document.getElementById('summary-name').textContent = activeConfig.name;\n      document.getElementById('summary-process').textContent = activeConfig.linkProcess;\n\n      const m = activeConfig.mobile || '';\n      const masked = m.length >= 4 ? '*'.repeat(Math.max(0, m.length - 2)) + m.slice(-2) : m;\n      document.getElementById('prompt-mobile').textContent = masked;\n    }\n\n    function onConfigChange() {\n      activeConfig.mobile = document.getElementById('cfg-mobile').value.trim();\n      activeConfig.acc = document.getElementById('cfg-acc').value.trim();\n      activeConfig.linkProcess = document.getElementById('cfg-link-process').value;\n      activeConfig.name = document.getElementById('cfg-name').value.trim();\n      activeConfig.uid = document.getElementById('cfg-uid').value.trim();\n      activeConfig.pid = document.getElementById('cfg-pid').value.trim();\n      activeConfig.ru = document.getElementById('cfg-ru').value.trim();\n      activeConfig.se = document.getElementById('cfg-se').value.trim();\n\n      saveCachedConfig(activeConfig);\n      renderDisplaySummary();\n    }\n\n    function saveConfigFeedback() {\n      onConfigChange();\n      const btn = document.querySelector('.btn-save-cfg');\n      const original = btn.textContent;\n      btn.textContent = 'Saved to Cache!';\n      btn.style.background = '#dcfce7';\n      btn.style.color = '#15803d';\n      setTimeout(() => {\n        btn.textContent = original;\n        btn.style.background = '';\n        btn.style.color = '';\n      }, 1500);\n    }\n\n    function resetToDefaults() {\n      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}\n      initPortal();\n      saveConfigFeedback();\n    }\n\n    function toggleSettings() {\n      const toggle = document.getElementById('settings-toggle-btn');\n      const content = document.getElementById('settings-content');\n      toggle.classList.toggle('open');\n      content.classList.toggle('open');\n    }\n\n    function setupOtpInputHandlers() {\n      const inputs = [\n        document.getElementById('otp-1'),\n        document.getElementById('otp-2'),\n        document.getElementById('otp-3'),\n        document.getElementById('otp-4'),\n        document.getElementById('otp-5'),\n        document.getElementById('otp-6')\n      ];\n\n      inputs.forEach((input, index) => {\n        input.addEventListener('input', (e) => {\n          const val = e.target.value.replace(/[^0-9]/g, '');\n          e.target.value = val ? val[0] : '';\n          if (val && index < inputs.length - 1) {\n            inputs[index + 1].focus();\n            inputs[index + 1].select();\n          }\n        });\n\n        input.addEventListener('keydown', (e) => {\n          if (e.key === 'Backspace' && !input.value && index > 0) {\n            inputs[index - 1].focus();\n            inputs[index - 1].select();\n          }\n        });\n\n        input.addEventListener('paste', (e) => {\n          e.preventDefault();\n          const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');\n          if (pasted) {\n            for (let i = 0; i < inputs.length; i++) {\n              inputs[i].value = pasted[i] || '';\n            }\n            const targetIdx = Math.min(pasted.length, inputs.length) - 1;\n            if (targetIdx >= 0) inputs[targetIdx].focus();\n          }\n        });\n      });\n    }\n\n    function resetOtp() {\n      const digits = ['1', '2', '3', '4', '5', '6'];\n      digits.forEach((d, i) => {\n        const el = document.getElementById('otp-' + (i + 1));\n        if (el) el.value = d;\n      });\n    }\n\n    function handleAuthSubmit(status) {\n      const isSuccess = (status === 'SUCCESS');\n      const approveBtn = document.getElementById('btn-approve');\n      const failBtn = document.getElementById('btn-fail');\n\n      approveBtn.disabled = true;\n      failBtn.disabled = true;\n\n      if (isSuccess) {\n        approveBtn.textContent = \"Authorizing & Redirecting...\";\n      } else {\n        failBtn.textContent = \"Simulating Failure...\";\n      }\n\n      onConfigChange();\n\n      const targetUrl = new URL(activeConfig.ru || 'https://rc.esewa.com.np/api/web/account_link/return_request');\n\n      targetUrl.searchParams.set('PID', activeConfig.pid);\n      targetUrl.searchParams.set('UID', activeConfig.uid);\n      targetUrl.searchParams.set('ACC', activeConfig.acc);\n      targetUrl.searchParams.set('LINK_PROCESS', activeConfig.linkProcess);\n\n      if (isSuccess) {\n        targetUrl.searchParams.set('SUCCESS', 'true');\n        targetUrl.searchParams.set('NAME', activeConfig.name);\n        targetUrl.searchParams.set('MOBILE', activeConfig.mobile);\n        targetUrl.searchParams.set('REFNO', 'REF-' + Date.now());\n        targetUrl.searchParams.set('SE', activeConfig.se || 'MOCK-SESSION-123');\n        targetUrl.searchParams.set('R1', 'SUCCESS');\n        targetUrl.searchParams.set('R2', 'NA');\n      } else {\n        targetUrl.searchParams.set('SUCCESS', 'FAILED');\n        targetUrl.searchParams.set('NAME', '');\n        targetUrl.searchParams.set('MOBILE', '');\n        targetUrl.searchParams.set('REFNO', '');\n        targetUrl.searchParams.set('SE', 'MOCK-FAILED-SESSION');\n        targetUrl.searchParams.set('R1', 'FAILED');\n        targetUrl.searchParams.set('R2', 'Invalid OTP or Authentication Failed');\n      }\n\n      window.location.replace(targetUrl.toString());\n    }\n\n    window.addEventListener('DOMContentLoaded', initPortal);\n  </script>\n</body>\n</html>"
+        }
+      ]
+    },
+    {
+      "name": "BankSmart Switch Verification",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://c90ddef4-9994-4294-a77b-08302c92a765.mock.pstmn.io/mbank-verification/",
+          "protocol": "https",
+          "host": [
+            "c90ddef4-9994-4294-a77b-08302c92a765",
+            "mock",
+            "pstmn",
+            "io"
+          ],
+          "path": [
+            "mbank-verification",
+            ""
+          ],
+          "query": [
+            {
+              "key": "x-mock-response-name",
+              "value": "-1",
+              "disabled": true
+            },
+            {
+              "key": "jhkjh",
+              "value": "",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "BankSmart Switch Verification (VM=AV)",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml; charset=utf-8"
+              }
+            ],
+            "url": {
+              "raw": "https://c90ddef4-9994-4294-a77b-08302c92a765.mock.pstmn.io/mbank-verification/?VM=AV",
+              "protocol": "https",
+              "host": [
+                "c90ddef4-9994-4294-a77b-08302c92a765",
+                "mock",
+                "pstmn",
+                "io"
+              ],
+              "path": [
+                "mbank-verification",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "VM",
+                  "value": "AV"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "xml",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/xml"
+            }
+          ],
+          "cookie": [],
+          "body": "<response>\n  <response_code>0</response_code>\n  <account_number>{{$queryParams 'ACC'}}</account_number>\n  <unique_id>{{$queryParams 'UID'}}</unique_id>\n  <name>{{$queryParams 'NAME'}}</name>\n  <mobile_number>{{$queryParams 'MOBILE'}}</mobile_number>\n  <bank>MOCK_BANK_LTD</bank>\n  <remark>Verification successful</remark>\n  <requested_date>{{$timestamp}}</requested_date>\n</response>"
+        },
+        {
+          "name": "BankSmart Switch Verification",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://c90ddef4-9994-4294-a77b-08302c92a765.mock.pstmn.io/mbank-verification/?ACC=0000000000",
+              "protocol": "https",
+              "host": [
+                "c90ddef4-9994-4294-a77b-08302c92a765",
+                "mock",
+                "pstmn",
+                "io"
+              ],
+              "path": [
+                "mbank-verification",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "ACC",
+                  "value": "0000000000"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "xml",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/xml"
+            }
+          ],
+          "cookie": [],
+          "body": "<response>\n  <response_code>1</response_code>\n  <account_number>{{$queryParams 'ACC'}}</account_number>\n  <unique_id>{{$queryParams 'UID'}}</unique_id>\n  <name>{{$queryParams 'NAME'}}</name>\n  <mobile_number>{{$queryParams 'MOBILE'}}</mobile_number>\n  <bank>MOCK_BANK_LTD</bank>\n  <remark>Account Dormant or Name Mismatch</remark>\n  <requested_date>{{$timestamp}}</requested_date>\n</response>"
+        }
+      ]
+    }
+  ]
+}

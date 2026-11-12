@@ -34,5 +34,8 @@ public class CollectionMongoEntity {
         private String protocol;
         private String resourceId;
         private String name;
+        private String parentItemId;
+        private String itemType;
+        private java.util.Map<String, String> matchSummary;
     }
 }

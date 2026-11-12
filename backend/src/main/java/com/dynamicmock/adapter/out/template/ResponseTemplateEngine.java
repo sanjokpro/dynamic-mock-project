@@ -204,7 +204,7 @@ public class ResponseTemplateEngine {
                     Object qpObj = requestMap.get("queryParams");
                     if (qpObj instanceof Map<?, ?> qpMap && qpMap.containsKey(paramName)) {
                         Object val = qpMap.get(paramName);
-                        return val != null ? val.toString() : "";
+                        return val != null ? new Handlebars.SafeString(val.toString()) : "";
                     }
                 }
             }
