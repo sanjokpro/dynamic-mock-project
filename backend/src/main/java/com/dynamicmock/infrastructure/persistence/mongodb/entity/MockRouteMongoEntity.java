@@ -47,6 +47,9 @@ public class MockRouteMongoEntity {
     
     private String scenarioName;
     
+    private Integer priority;
+    private Map<String, String> metadata;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

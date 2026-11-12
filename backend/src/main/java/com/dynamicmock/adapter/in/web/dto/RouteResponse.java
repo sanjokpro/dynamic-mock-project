@@ -36,6 +36,8 @@ public class RouteResponse {
     private Integer version;
     private Boolean active;
     private String scenarioName;
+    private Integer priority;
+    private Map<String, String> metadata;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -56,6 +58,8 @@ public class RouteResponse {
                 .version(route.getVersion())
                 .active(route.getActive())
                 .scenarioName(route.getScenarioName())
+                .priority(route.getPriority() != null ? route.getPriority() : 0)
+                .metadata(route.getMetadata())
                 .createdAt(route.getCreatedAt())
                 .updatedAt(route.getUpdatedAt())
                 .build();

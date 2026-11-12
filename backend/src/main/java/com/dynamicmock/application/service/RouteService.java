@@ -35,8 +35,57 @@ public class RouteService {
      */
     @Transactional
     public RouteResponse createRoute(CreateRouteRequest request) {
+        // In-place update for idempotent re-import when a route with this ID already exists
+        if (request.getId() != null && repository.existsById(request.getId())) {
+            MockRoute existing = repository.findById(request.getId()).orElseThrow();
+            // Preserve user modifications if flagged
+            if (existing.getMetadata() != null && "true".equalsIgnoreCase(existing.getMetadata().get("userModified"))) {
+                log.info("Preserving user-modified route without overwriting: {}", existing.getId());
+                return toResponse(existing);
+            }
+            saveRouteVersion(existing, "Route updated via import");
+            MockRoute previousSnapshot = MockRoute.builder()
+                    .id(existing.getId())
+                    .method(existing.getMethod())
+                    .path(existing.getPath())
+                    .build();
+
+            existing.setPath(sanitizePath(request.getPath()));
+            existing.setMethod(request.getMethod().toUpperCase());
+            existing.setMatchers(request.getMatchers());
+            existing.setQueryParams(request.getQueryParams());
+            existing.setResponseTemplate(request.getResponseTemplate());
+            existing.setResponseStatus(request.getResponseStatus() != null ? request.getResponseStatus() : 200);
+            existing.setResponseHeaders(request.getResponseHeaders());
+            if (request.getPreScript() != null) existing.setPreScript(request.getPreScript());
+            if (request.getPostScript() != null) existing.setPostScript(request.getPostScript());
+            if (request.getScriptLanguage() != null) existing.setScriptLanguage(request.getScriptLanguage());
+            if (request.getDelayMs() != null) existing.setDelayMs(request.getDelayMs());
+            if (request.getScenarioName() != null) existing.setScenarioName(request.getScenarioName());
+            if (request.getPriority() != null) existing.setPriority(request.getPriority());
+            if (request.getMetadata() != null) {
+                if (existing.getMetadata() == null) {
+                    existing.setMetadata(new java.util.HashMap<>());
+                }
+                existing.getMetadata().putAll(request.getMetadata());
+            }
+            existing.setUpdatedAt(LocalDateTime.now());
+            existing = repository.save(existing);
+
+            if (Boolean.TRUE.equals(existing.getActive())) {
+                routeRegistry.unregister(previousSnapshot);
+                routeRegistry.register(existing);
+            }
+            log.info("Updated existing route in-place: {} {} {}", existing.getMethod(), existing.getPath(), existing.getId());
+            return toResponse(existing);
+        }
+
+        String routeId = request.getId() != null && !request.getId().isBlank()
+                ? request.getId()
+                : UUID.randomUUID().toString();
+
         MockRoute route = MockRoute.builder()
-                .id(UUID.randomUUID().toString())
+                .id(routeId)
                 .path(sanitizePath(request.getPath()))
                 .method(request.getMethod().toUpperCase())
                 .matchers(request.getMatchers())
@@ -50,6 +99,8 @@ public class RouteService {
                 .delayMs(request.getDelayMs() != null ? request.getDelayMs() : 0)
                 .version(request.getVersion() != null ? request.getVersion() : 1)
                 .scenarioName(request.getScenarioName())
+                .priority(request.getPriority() != null ? request.getPriority() : 0)
+                .metadata(request.getMetadata())
                 .active(false) // Routes are inactive by default
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -266,6 +317,8 @@ public class RouteService {
                 .version(route.getVersion())
                 .active(route.getActive())
                 .scenarioName(route.getScenarioName())
+                .priority(route.getPriority() != null ? route.getPriority() : 0)
+                .metadata(route.getMetadata())
                 .createdAt(route.getCreatedAt())
                 .updatedAt(route.getUpdatedAt())
                 .build();

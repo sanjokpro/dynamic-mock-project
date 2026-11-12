@@ -19,6 +19,9 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateRouteRequest {
+
+    /** Optional explicit route ID (e.g. deterministic ID during import). */
+    private String id;
     
     @NotBlank(message = "Path is required")
     private String path;
@@ -41,5 +44,11 @@ public class CreateRouteRequest {
     private Integer version;
     
     private String scenarioName;
+
+    /** Priority for deterministic route matching (higher wins; default 0). */
+    private Integer priority;
+
+    /** Generic metadata for provenance and tracking (e.g. source, postmanExampleId). */
+    private Map<String, String> metadata;
 }
 

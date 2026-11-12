@@ -28,6 +28,8 @@ public class MockRouteMapper {
                 .version(entity.getVersion())
                 .active(entity.getActive())
                 .scenarioName(entity.getScenarioName())
+                .priority(entity.getPriority() != null ? entity.getPriority() : 0)
+                .metadata(entity.getMetadata())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -51,6 +53,8 @@ public class MockRouteMapper {
                 .version(domain.getVersion())
                 .active(domain.getActive())
                 .scenarioName(domain.getScenarioName())
+                .priority(domain.getPriority() != null ? domain.getPriority() : 0)
+                .metadata(domain.getMetadata())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
                 .build();

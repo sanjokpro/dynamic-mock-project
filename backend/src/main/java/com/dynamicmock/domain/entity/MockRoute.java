@@ -47,6 +47,12 @@ public class MockRoute {
      */
     private String scenarioName;
 
+    /** Priority for deterministic route matching (higher wins; default 0). */
+    private Integer priority;
+
+    /** Generic metadata for provenance and tracking (e.g. source, postmanExampleId, userModified). */
+    private Map<String, String> metadata;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -29,6 +29,8 @@ public final class PostmanCollectionModel {
     public static class PostmanCollection {
         private Info info;
         private List<Item> item;
+        /** Top-level collection variables (key/value pairs). */
+        private List<CollectionVariable> variable;
     }
 
     @Data
@@ -37,6 +39,9 @@ public final class PostmanCollectionModel {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Info {
+        @JsonProperty("_postman_id")
+        private String postmanId;
+        private String id;
         private String name;
         private String description;
         private String schema;
@@ -152,10 +157,18 @@ public final class PostmanCollectionModel {
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class PostmanResponse {
+        @JsonProperty("_postman_id")
+        private String postmanId;
+        private String id;
         private String name;
         private Integer code;
         private String body;
         private List<Header> header;
+        /**
+         * originalRequest holds the request details of the saved example — used
+         * to derive per-example matchers (query params, headers) during import.
+         */
+        private Request originalRequest;
     }
 
     @Data
@@ -176,6 +189,21 @@ public final class PostmanCollectionModel {
     public static class Script {
         private String type;
         private List<String> exec;
+    }
+
+    /**
+     * Top-level collection variable (key/value pair in the "variable" array).
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class CollectionVariable {
+        private String key;
+        private String value;
+        /** When true the variable is disabled and must be ignored on import. */
+        private Boolean disabled;
     }
 
     /**
