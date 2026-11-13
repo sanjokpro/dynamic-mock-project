@@ -142,11 +142,48 @@ export function RequestPanel() {
     }
 
     if (!restoredDraft) {
+      // Smart prefill fallback: if activeRoute.queryParams is empty, fall back to matchers.queryParams
+      if ((!restoredParams || Object.keys(restoredParams).length === 0) && activeRoute.matchers?.queryParams) {
+        restoredParams = { ...activeRoute.matchers.queryParams };
+      }
+
+      // Smart prefill for headers: fallback to sampleRequestHeaders metadata or matchers.headers
+      let initialHeaders: Record<string, string> = {};
+      if (activeRoute.metadata?.sampleRequestHeaders) {
+        try {
+          initialHeaders = JSON.parse(activeRoute.metadata.sampleRequestHeaders);
+        } catch {}
+      } else if (activeRoute.matchers?.headers) {
+        for (const [k, v] of Object.entries(activeRoute.matchers.headers)) {
+          initialHeaders[k] = v === '.*' ? 'test' : v;
+        }
+      }
+
+      // Smart prefill for request body: fallback to sampleRequestBody metadata
+      let initialBodyContent = '';
+      let initialBodyType: 'none' | 'json' | 'form' | 'raw' = 'none';
+      if (activeRoute.metadata?.sampleRequestBody) {
+        initialBodyContent = activeRoute.metadata.sampleRequestBody;
+        try {
+          JSON.parse(initialBodyContent);
+          initialBodyType = 'json';
+        } catch {
+          initialBodyType = 'raw';
+        }
+      }
+
       setQueryParams(restoredParams);
-      setRequestHeaders({});
-      setHeaderRows([]);
-      setRequestBodyType('none');
-      setRequestBodyContent('');
+      setRequestHeaders(initialHeaders);
+      setHeaderRows(
+        Object.entries(initialHeaders).map(([key, value], idx) => ({
+          id: `hdr-${idx}-${key}`,
+          key,
+          value,
+          enabled: true
+        }))
+      );
+      setRequestBodyType(initialBodyType);
+      setRequestBodyContent(initialBodyContent);
     }
 
     setUrl(buildUrlWithQueryParams(baseUrlForPath, restoredParams));

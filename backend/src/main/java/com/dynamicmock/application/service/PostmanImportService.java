@@ -309,12 +309,19 @@ public class PostmanImportService {
                 Map<String, String> metadata = new LinkedHashMap<>();
                 metadata.put("source", "postman");
                 metadata.put("itemName", displayName);
+                if (body != null && body.getRaw() != null && !body.getRaw().isBlank()) {
+                    metadata.put("sampleRequestBody", body.getRaw());
+                }
+
+                @SuppressWarnings("unchecked")
+                Map<String, String> qParams = (Map<String, String>) matchers.get("queryParams");
 
                 CreateRouteRequest createRequest = CreateRouteRequest.builder()
                         .id(routeId)
                         .path(defaultPath)
                         .method(defaultMethod)
                         .matchers(matchers.isEmpty() ? null : matchers)
+                        .queryParams(qParams != null && !qParams.isEmpty() ? qParams : null)
                         .responseTemplate(DEFAULT_RESPONSE_TEMPLATE)
                         .responseStatus(200)
                         .responseHeaders(null)
@@ -374,11 +381,21 @@ public class PostmanImportService {
                     if (example.getPostmanId() != null) metadata.put("postmanExampleId", example.getPostmanId());
                     else if (example.getId() != null) metadata.put("postmanExampleId", example.getId());
 
+                    String sampleBody = origReq != null && origReq.getBody() != null ? origReq.getBody().getRaw()
+                            : (body != null ? body.getRaw() : null);
+                    if (sampleBody != null && !sampleBody.isBlank()) {
+                        metadata.put("sampleRequestBody", sampleBody);
+                    }
+
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> qParams = (Map<String, String>) matchers.get("queryParams");
+
                     CreateRouteRequest createRequest = CreateRouteRequest.builder()
                             .id(routeId)
                             .path(exPath)
                             .method(exMethod)
                             .matchers(matchers.isEmpty() ? null : matchers)
+                            .queryParams(qParams != null && !qParams.isEmpty() ? qParams : null)
                             .responseTemplate(template)
                             .responseStatus(status)
                             .responseHeaders(headers)
