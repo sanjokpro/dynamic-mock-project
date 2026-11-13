@@ -215,3 +215,78 @@ As defined in the authoritative feature support matrix:
 The v0.6.2 Postman Compatibility & Collection Explorer implementation has satisfied 100% of the requirements in `V0_6_2_POSTMAN_COMPATIBILITY_IMPLEMENTATION_PLAN.md`. All security invariants, deterministic dispatch rules, re-import idempotency constraints, and UI tree features are verified in code, automated test suites, and live runtime acceptance testing.
 
 The system is ready for general release and user consumption.
+
+---
+
+## 12. Final Release Smoke Checks (Real UI & Second Fixture)
+
+**Date of Execution:** November 13, 2026  
+**Execution Harness:** Live browser automation driving headless Google Chrome (PID 71895) via Chrome DevTools Protocol (CDP) connected to `http://localhost/`.
+
+### 12.1 Check 1: Real UI Import of `esewa-banksmart-mock.json`
+
+1. **State Isolation:** All existing BankSmart routes and collections were removed from MongoDB prior to import.
+2. **UI Import Flow:** The visible Import modal was opened from the workspace navigation bar, the local fixture `/Users/sanjokkhakurel/GITHUB-REPO/dynamic-mock-project/backend/src/test/resources/postman/esewa-banksmart-mock.json` was loaded into the file picker via native `DOM.setFileInputFiles`, and submitted through the UI.
+3. **Modal Report Verification:**
+   - **Collections Created:** `1` (`eSewa-BankSmart-Mock`)
+   - **Routes Created:** `3` active routes
+   - **Environments Created:** `0`
+   - **Errors Count:** `0`
+   - **Warnings Count:** `1` (Expected ambiguity notification):
+     `"Ambiguous example matchers detected for GET /mbank-verification: 'BankSmart Switch Verification (VM=AV)' and 'BankSmart Switch Verification' both have 1 constraint(s). Transparent deterministic fallback applied."`
+4. **Collection Explorer Tree:**
+   - Collection expanded to:
+     * `eSewa-BankSmart-Mock (3)`
+       - `GET BankSmart portal web view (1)`
+         * `BankSmart portal web view [VM=AC] 200 HTML`
+       - `GET BankSmart Switch Verification (2)`
+         * `BankSmart Switch Verification (VM=AV) [VM=AV] 200 XML`
+         * `BankSmart Switch Verification [ACC=0000000000] 200 XML`
+5. **Live Test Client Executions:**
+   - **Variant 1 (`VM=AC`):** Status `200 OK`, `Content-Type: text/html;charset=utf-8`, rendered full interactive BankSmart authentication portal HTML.
+   - **Variant 2 (`VM=AV` with normal account):** Status `200 OK`, `Content-Type: application/xml;charset=ISO-8859-1`, response contains `<response_code>0</response_code>`, `<remark>Verification successful</remark>`, echoed account number `9801879262`, and 10-digit epoch seconds timestamp `<requested_date>1794550298</requested_date>`.
+   - **Variant 3 (`VM=AV&ACC=0000000000` Dormant Account):** Status `200 OK`, `Content-Type: application/xml;charset=ISO-8859-1`, response contains `<response_code>1</response_code>`, `<remark>Account Dormant or Name Mismatch</remark>`.
+6. **Re-import Idempotency:** The exact fixture was re-imported through the UI. Confirmed 0 duplicate collections and 0 duplicate routes created in MongoDB (`db.collections.countDocuments({name: "eSewa-BankSmart-Mock"}) === 1`, `db.mock_routes.countDocuments({path: "/mbank-verification"}) === 3`).
+
+### 12.2 Check 2: Second Postman Fixture (`complex-smoke-fixture.json`)
+
+1. **Fixture Architecture:**
+   - Multi-folder hierarchy: Top folder `Store Operations`, nested folder `Order Processing` (containing `Get Order Details`), and nested folder `Invoice Management` (containing `Get Invoice`).
+   - Multiple status codes: `200 OK` and `404 Not Found`.
+   - Collection variables: `serviceName="order-service"`, `apiVersion="v1"`.
+   - Disabled parameters: query parameter `ignored_debug` (`disabled: true`), header `X-Custom-Trace` (`disabled: true`).
+2. **UI Import Flow:** Uploaded and submitted through visible UI Import modal.
+3. **Modal Report Verification:**
+   - **Collections Created:** `1` (`Store Operations`)
+   - **Routes Created:** `3`
+   - **Environments Created:** `1` (`Store Operations Variables` containing collection variables)
+   - **Errors Count:** `0`
+   - **Warnings Count:** `1` (Expected ambiguity notification on equal constraint counts)
+4. **Collection Explorer Tree:**
+   - `Store Operations (3)`
+     - `GET Order Processing/Get Order Details (2)`
+       * `Order Found (200) [status=active] 200 JSON`
+       * `Order Not Found (404) [status=missing] 404 JSON`
+     - `GET Invoice Management/Get Invoice (1)`
+       * `Invoice Management/Get Invoice [type=summary] 200 JSON`
+5. **Live Test Client Executions:**
+   - **Variant 1 (`Order Found (200)`):** Status `200 OK`, `Content-Type: application/json;charset=ISO-8859-1`, body:
+     ```json
+     {"status": "SUCCESS", "service": "order-service", "statusCode": 200, "message": "Order active and verified"}
+     ```
+   - **Variant 2 (`Order Not Found (404)`):** Status `404 Not Found`, `Content-Type: application/json;charset=ISO-8859-1`, body:
+     ```json
+     {"status": "NOT_FOUND", "statusCode": 404, "error": "Requested order does not exist"}
+     ```
+   - **Variant 3 (`Invoice Summary (200)`):** Status `200 OK`, `Content-Type: application/json;charset=ISO-8859-1`, body:
+     ```json
+     {"invoiceId": "INV-1001", "total": 250, "status": "PAID"}
+     ```
+   - **Routing Header `x-mock-response-code`:** Request with header `x-mock-response-code: 404` successfully filtered candidates and returned `404 Not Found`.
+   - **Routing Header `x-mock-response-name`:** Request with header `x-mock-response-name: Order Found (200)` successfully overrode conflicting query parameters and returned `200 OK` with the success payload.
+6. **Re-import Idempotency:** Second fixture re-imported through UI; confirmed 0 duplicate collections, requests, or routes in MongoDB.
+
+### 12.3 Final Release Verdict
+
+**VERDICT: UNCONDITIONAL GO**
+
