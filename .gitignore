@@ -10,7 +10,7 @@ backend/ci_build/
 
 # Gradle
 .gradle/
-**/gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 !**/gradle/wrapper/gradle-wrapper.properties
 
 # Gradle runtime artifacts
@@ -23,6 +23,7 @@ backend/*.zip
 **/dist/
 .npm/
 **/package-lock.json
+!frontend/package-lock.json
 
 # IDEs
 .idea/
