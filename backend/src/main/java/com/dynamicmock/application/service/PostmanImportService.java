@@ -88,6 +88,7 @@ public class PostmanImportService {
         private int environments;
         private int collections;
         private int routes;
+        private List<String> notices = new ArrayList<>();
         private List<String> warnings = new ArrayList<>();
         private List<String> errors = new ArrayList<>();
 
@@ -96,11 +97,17 @@ public class PostmanImportService {
 
         public ImportReport(int environments, int collections, int routes,
                             List<String> warnings, List<String> errors) {
+            this(environments, collections, routes, new ArrayList<>(), warnings, errors);
+        }
+
+        public ImportReport(int environments, int collections, int routes,
+                            List<String> notices, List<String> warnings, List<String> errors) {
             this.environments = environments;
             this.collections = collections;
             this.routes = routes;
-            this.warnings = warnings;
-            this.errors = errors;
+            this.notices = notices != null ? notices : new ArrayList<>();
+            this.warnings = warnings != null ? warnings : new ArrayList<>();
+            this.errors = errors != null ? errors : new ArrayList<>();
         }
     }
 
@@ -281,9 +288,22 @@ public class PostmanImportService {
                 return;
             }
 
-            if ((item.getEvent() != null && !item.getEvent().isEmpty())
-                    || (request.getEvent() != null && !request.getEvent().isEmpty())) {
-                report.getWarnings().add("Request '" + displayName + "': Postman scripts (prerequest/test) were skipped");
+            List<Event> events = new ArrayList<>();
+            if (item.getEvent() != null) events.addAll(item.getEvent());
+            if (request.getEvent() != null) events.addAll(request.getEvent());
+
+            if (!events.isEmpty()) {
+                boolean hasPreRequest = events.stream()
+                        .anyMatch(e -> "prerequest".equalsIgnoreCase(e.getListen()));
+                boolean hasTest = events.stream()
+                        .anyMatch(e -> "test".equalsIgnoreCase(e.getListen()) || e.getListen() == null);
+
+                if (hasPreRequest) {
+                    report.getWarnings().add("Request '" + displayName + "': Postman pre-request scripts were skipped");
+                }
+                if (hasTest) {
+                    report.getNotices().add("Request '" + displayName + "': Postman test scripts were skipped (assertions do not run in mock server)");
+                }
             }
 
             Body body = request.getBody();
@@ -336,7 +356,7 @@ public class PostmanImportService {
                 report.setRoutes(report.getRoutes() + 1);
             } else {
                 // Detect ambiguous matchers among examples for the same method/path
-                checkAndReportAmbiguities(displayName, defaultMethod, defaultPath, examples, report);
+                checkAndReportAmbiguities(displayName, defaultMethod, defaultPath, request, examples, report);
 
                 // Multi-example splitting: each saved example becomes a distinct conditional MockRoute
                 for (int i = 0; i < examples.size(); i++) {
@@ -455,48 +475,93 @@ public class PostmanImportService {
         return summary.isEmpty() ? null : summary;
     }
 
-    private void checkAndReportAmbiguities(String displayName, String method, String path,
-                                           List<PostmanResponse> examples, ImportReport report) {
+    private void checkAndReportAmbiguities(String displayName, String defaultMethod, String defaultPath,
+                                           Request request, List<PostmanResponse> examples, ImportReport report) {
         if (examples == null || examples.size() < 2) return;
         for (int i = 0; i < examples.size(); i++) {
             for (int j = i + 1; j < examples.size(); j++) {
                 PostmanResponse ex1 = examples.get(i);
                 PostmanResponse ex2 = examples.get(j);
+
                 Request req1 = ex1.getOriginalRequest();
                 Request req2 = ex2.getOriginalRequest();
-                int c1 = req1 != null ? countConstraints(req1, method) : 0;
-                int c2 = req2 != null ? countConstraints(req2, method) : 0;
-                if (c1 == c2) {
-                    String name1 = ex1.getName() != null ? ex1.getName() : "Example " + (i + 1);
-                    String name2 = ex2.getName() != null ? ex2.getName() : "Example " + (j + 1);
+
+                String path1 = req1 != null && req1.getUrl() != null ? extractPath(req1.getUrl()) : defaultPath;
+                if (path1 == null) path1 = defaultPath;
+                String path2 = req2 != null && req2.getUrl() != null ? extractPath(req2.getUrl()) : defaultPath;
+                if (path2 == null) path2 = defaultPath;
+
+                String m1 = req1 != null && req1.getMethod() != null && !req1.getMethod().isBlank()
+                        ? req1.getMethod().toUpperCase() : defaultMethod;
+                if (m1 == null) m1 = defaultMethod;
+                String m2 = req2 != null && req2.getMethod() != null && !req2.getMethod().isBlank()
+                        ? req2.getMethod().toUpperCase() : defaultMethod;
+                if (m2 == null) m2 = defaultMethod;
+
+                if (!path1.equals(path2) || !m1.equalsIgnoreCase(m2)) {
+                    continue; // Targets different endpoints
+                }
+
+                Map<String, Object> matchers1 = req1 != null ? buildMatchers(req1, m1)
+                        : (request != null ? buildMatchers(request, defaultMethod) : Map.of());
+                Map<String, Object> matchers2 = req2 != null ? buildMatchers(req2, m2)
+                        : (request != null ? buildMatchers(request, defaultMethod) : Map.of());
+
+                String key1 = buildEffectiveImportedMatchersKey(matchers1);
+                String key2 = buildEffectiveImportedMatchersKey(matchers2);
+
+                String name1 = ex1.getName() != null && !ex1.getName().isBlank() ? ex1.getName() : "Example " + (i + 1);
+                String name2 = ex2.getName() != null && !ex2.getName().isBlank() ? ex2.getName() : "Example " + (j + 1);
+
+                if (key1.isEmpty() && key2.isEmpty()) {
                     report.getWarnings().add(String.format(
-                            "Ambiguous example matchers detected for %s %s: '%s' and '%s' both have %d constraint(s). Transparent deterministic fallback applied.",
-                            method, path, name1, name2, c1));
+                            "No distinguishing request conditions for %s %s: '%s' and '%s' have no query parameters or headers. These responses cannot be distinguished through normal request conditions. Dynamic Mock will apply route priority and selection order. Use request header 'x-mock-response-name: <name>' to select a specific response.",
+                            m1, path1, name1, name2));
+                } else if (!key1.isEmpty() && key1.equals(key2)) {
+                    report.getWarnings().add(String.format(
+                            "Identical matching conditions for %s %s: '%s' and '%s' specify the same request conditions. These responses cannot be distinguished through normal request conditions. Dynamic Mock will apply route priority and selection order. Use request header 'x-mock-response-name: <name>' to select a specific response.",
+                            m1, path1, name1, name2));
                 }
             }
         }
     }
 
-    private int countConstraints(Request req, String method) {
-        int count = 0;
-        if (req.getHeader() != null) {
-            for (Header h : req.getHeader()) {
-                if (h.getKey() != null && !h.getKey().isBlank() && !Boolean.TRUE.equals(h.getDisabled())) {
-                    if (isIgnoredHeader(h.getKey(), method)) {
-                        continue;
-                    }
-                    count++;
-                }
-            }
+    private String buildEffectiveImportedMatchersKey(Map<String, Object> matchers) {
+        if (matchers == null || matchers.isEmpty()) {
+            return "";
         }
-        if (req.getUrl() != null && req.getUrl().getQuery() != null) {
-            for (PostmanCollectionModel.QueryParam q : req.getUrl().getQuery()) {
-                if (q.getKey() != null && !q.getKey().isBlank() && !Boolean.TRUE.equals(q.getDisabled())) {
-                    count++;
-                }
-            }
+        StringBuilder sb = new StringBuilder();
+
+        // Query parameters: sorted alphabetically key ASC, value ASC
+        sb.append("q=[");
+        if (matchers.get("queryParams") instanceof Map<?, ?> qp) {
+            List<String> sortedParams = qp.entrySet().stream()
+                    .filter(e -> e.getKey() != null && e.getValue() != null)
+                    .map(e -> String.valueOf(e.getKey()) + "=" + String.valueOf(e.getValue()))
+                    .sorted()
+                    .toList();
+            sb.append(String.join("&", sortedParams));
         }
-        return count;
+        sb.append("]");
+
+        // Headers: filtered and sorted alphabetically by lowercase name ASC, value ASC
+        sb.append("&h=[");
+        if (matchers.get("headers") instanceof Map<?, ?> hdrs) {
+            List<String> sortedHeaders = hdrs.entrySet().stream()
+                    .filter(e -> e.getKey() != null && e.getValue() != null)
+                    .map(e -> Map.entry(String.valueOf(e.getKey()).toLowerCase(), String.valueOf(e.getValue())))
+                    .filter(e -> !HOP_BY_HOP_HEADERS.contains(e.getKey()))
+                    .map(e -> e.getKey() + ":" + e.getValue())
+                    .sorted()
+                    .toList();
+            sb.append(String.join("|", sortedHeaders));
+        }
+        sb.append("]");
+
+        if ("q=[]&h=[]".equals(sb.toString())) {
+            return "";
+        }
+        return sb.toString();
     }
 
     private boolean isBodylessMethod(String method) {

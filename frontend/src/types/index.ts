@@ -126,6 +126,7 @@ export interface ImportReport {
   environments: number;
   collections: number;
   routes: number;
+  notices?: string[];
   warnings: string[];
   errors: string[];
 }

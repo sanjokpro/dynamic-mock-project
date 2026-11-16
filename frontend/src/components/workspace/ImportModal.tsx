@@ -221,6 +221,9 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                 <StatCard label="Routes" value={report.routes} />
               </div>
 
+              {(report.notices || []).length > 0 && (
+                <ReportList title="Notices" items={report.notices || []} tone="notice" />
+              )}
               {report.warnings.length > 0 && (
                 <ReportList title="Warnings" items={report.warnings} tone="warning" />
               )}
@@ -309,15 +312,19 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ReportList({ title, items, tone }: { title: string; items: string[]; tone: 'warning' | 'error' }) {
+function ReportList({ title, items, tone }: { title: string; items: string[]; tone: 'warning' | 'error' | 'notice' }) {
   return (
     <div className={cn(
       'border rounded-md px-3 py-2',
-      tone === 'warning' ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-destructive/30 bg-destructive/5'
+      tone === 'warning' && 'border-yellow-500/30 bg-yellow-500/5',
+      tone === 'error' && 'border-destructive/30 bg-destructive/5',
+      tone === 'notice' && 'border-blue-500/30 bg-blue-500/5'
     )}>
       <p className={cn(
         'text-[10px] font-bold uppercase tracking-wider mb-1',
-        tone === 'warning' ? 'text-yellow-600 dark:text-yellow-500' : 'text-destructive'
+        tone === 'warning' && 'text-yellow-600 dark:text-yellow-500',
+        tone === 'error' && 'text-destructive',
+        tone === 'notice' && 'text-blue-600 dark:text-blue-400'
       )}>
         {title} ({items.length})
       </p>

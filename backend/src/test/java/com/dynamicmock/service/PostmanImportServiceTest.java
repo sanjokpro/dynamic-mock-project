@@ -329,4 +329,196 @@ class PostmanImportServiceTest {
             assertFalse(req.getId().isBlank());
         }
     }
+
+    @Test
+    @DisplayName("Should not warn for distinct query parameters across examples (e.g. BankSmart VM=AV vs ACC=0000000000)")
+    void importCollection_shouldNotWarnForDistinctQueryParams() {
+        String json = """
+        {
+          "info": { "name": "Distinct Params Test", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+          "item": [
+            {
+              "name": "Verification Endpoint",
+              "request": {
+                "method": "GET",
+                "url": "https://api.example.com/verify"
+              },
+              "response": [
+                {
+                  "name": "Variant VM",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "https://api.example.com/verify?VM=AV"
+                  },
+                  "code": 200,
+                  "body": "{\\"vm\\": true}"
+                },
+                {
+                  "name": "Variant ACC",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "https://api.example.com/verify?ACC=0000000000"
+                  },
+                  "code": 200,
+                  "body": "{\\"acc\\": true}"
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        ImportReport report = importService.importPostmanCollection(json.getBytes(), null);
+        assertTrue(report.getWarnings().isEmpty(), "Expected 0 warnings for distinct parameters; got: " + report.getWarnings());
+        assertEquals(2, report.getRoutes());
+    }
+
+    @Test
+    @DisplayName("Should not warn when examples have equal condition count but different keys (c1 == c2 regression)")
+    void importCollection_shouldNotWarnForSameParamCountDifferentKeys() {
+        String json = """
+        {
+          "info": { "name": "Equal Count Diff Keys", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+          "item": [
+            {
+              "name": "Items",
+              "request": { "method": "GET", "url": "https://api.example.com/items" },
+              "response": [
+                {
+                  "name": "Foo Variant",
+                  "originalRequest": { "method": "GET", "url": "https://api.example.com/items?foo=1" },
+                  "code": 200,
+                  "body": "foo"
+                },
+                {
+                  "name": "Bar Variant",
+                  "originalRequest": { "method": "GET", "url": "https://api.example.com/items?bar=1" },
+                  "code": 200,
+                  "body": "bar"
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        ImportReport report = importService.importPostmanCollection(json.getBytes(), null);
+        assertTrue(report.getWarnings().isEmpty(), "Expected 0 warnings for different keys; got: " + report.getWarnings());
+    }
+
+    @Test
+    @DisplayName("Should warn when examples specify identical query params and headers")
+    void importCollection_shouldWarnForIdenticalQueryParamsAndHeaders() {
+        String json = """
+        {
+          "info": { "name": "Identical Matchers", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+          "item": [
+            {
+              "name": "Orders",
+              "request": { "method": "GET", "url": "https://api.example.com/orders" },
+              "response": [
+                {
+                  "name": "Success Order",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "https://api.example.com/orders?status=active",
+                    "header": [{ "key": "X-Env", "value": "prod" }]
+                  },
+                  "code": 200,
+                  "body": "{\\"status\\":\\"ok\\"}"
+                },
+                {
+                  "name": "Duplicate Order Condition",
+                  "originalRequest": {
+                    "method": "GET",
+                    "url": "https://api.example.com/orders?status=active",
+                    "header": [{ "key": "x-env", "value": "prod" }]
+                  },
+                  "code": 400,
+                  "body": "{\\"status\\":\\"err\\"}"
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        ImportReport report = importService.importPostmanCollection(json.getBytes(), null);
+        assertEquals(1, report.getWarnings().size(), "Expected 1 warning for identical conditions; got: " + report.getWarnings());
+        String warning = report.getWarnings().get(0);
+        assertTrue(warning.contains("Identical matching conditions"), "Warning should indicate identical matching conditions");
+        assertTrue(warning.contains("Success Order") && warning.contains("Duplicate Order Condition"));
+        assertTrue(warning.contains("cannot be distinguished through normal request conditions"));
+        assertTrue(warning.contains("x-mock-response-name"));
+    }
+
+    @Test
+    @DisplayName("Should warn when multiple examples have no conditions (unconditional overlap)")
+    void importCollection_shouldWarnForMultipleZeroConditionExamples() {
+        String json = """
+        {
+          "info": { "name": "Unconditional Examples", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+          "item": [
+            {
+              "name": "Ping",
+              "request": { "method": "GET", "url": "https://api.example.com/ping" },
+              "response": [
+                {
+                  "name": "Ping Normal",
+                  "originalRequest": { "method": "GET", "url": "https://api.example.com/ping" },
+                  "code": 200,
+                  "body": "pong"
+                },
+                {
+                  "name": "Ping Outage",
+                  "originalRequest": { "method": "GET", "url": "https://api.example.com/ping" },
+                  "code": 503,
+                  "body": "down"
+                }
+              ]
+            }
+          ]
+        }
+        """;
+
+        ImportReport report = importService.importPostmanCollection(json.getBytes(), null);
+        assertEquals(1, report.getWarnings().size(), "Expected 1 warning for unconditional overlap; got: " + report.getWarnings());
+        String warning = report.getWarnings().get(0);
+        assertTrue(warning.contains("No distinguishing request conditions"), "Warning should indicate no distinguishing conditions");
+        assertTrue(warning.contains("Ping Normal") && warning.contains("Ping Outage"));
+        assertTrue(warning.contains("cannot be distinguished through normal request conditions"));
+    }
+
+    @Test
+    @DisplayName("Should classify test scripts as notices and pre-request scripts as warnings")
+    void importCollection_shouldClassifyScriptsBySeverity() {
+        String json = """
+        {
+          "info": { "name": "Script Severity Test", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+          "item": [
+            {
+              "name": "Pre-request Only",
+              "request": { "method": "GET", "url": "https://api.example.com/pre" },
+              "event": [
+                { "listen": "prerequest", "script": { "exec": ["console.log('pre');"] } }
+              ]
+            },
+            {
+              "name": "Test Assertion Only",
+              "request": { "method": "GET", "url": "https://api.example.com/test-only" },
+              "event": [
+                { "listen": "test", "script": { "exec": ["pm.test('200', () => {});"] } }
+              ]
+            }
+          ]
+        }
+        """;
+
+        ImportReport report = importService.importPostmanCollection(json.getBytes(), null);
+        assertEquals(1, report.getWarnings().size(), "Pre-request script must produce 1 warning");
+        assertTrue(report.getWarnings().get(0).contains("Pre-request Only") && report.getWarnings().get(0).contains("pre-request"));
+
+        assertEquals(1, report.getNotices().size(), "Test script must produce 1 notice");
+        assertTrue(report.getNotices().get(0).contains("Test Assertion Only") && report.getNotices().get(0).contains("test scripts were skipped"));
+    }
 }
