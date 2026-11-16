@@ -5,6 +5,67 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.2] — Postman Compatibility, Collection Explorer & Execution Contract (2026-11-16)
+
+### Added
+
+#### Postman Collection Compatibility & Multi-Example Ingestion
+- **Postman Collection v2.1 Importer Pipeline (`PostmanImportService`)** — Zero-touch collection ingestion importing requests, folders, headers, query parameters, auth metadata, and saved response examples directly into executable `MockRoute` entities.
+- **Multi-Example Route Splitting** — Ingests Postman request items containing $N$ saved examples by generating $N$ distinct conditional mock routes preserving folder paths and parent request context.
+- **Deterministic Route Identity (UUIDv5)** — Stable, deterministic route IDs computed from collection ID, folder hierarchy, item name, example name, and sorted effective matcher signatures, ensuring idempotent re-imports without duplicating routes or losing configurations.
+- **5-Tier Deterministic Dispatch Precedence (`DynamicRouteDispatcher`)** — Guaranteed route selection order for multi-variant endpoints:
+  1. Header override via `x-mock-response-name` (exact example name matching).
+  2. Multi-constraint matcher evaluation (query parameter, header, and body conditions).
+  3. Satisfied constraint count descending (most specific matcher wins).
+  4. Route priority integer descending.
+  5. Normalized matcher signature tie-breaker for deterministic selection.
+- **Postman Routing Headers Support** — Supports `x-mock-response-name` to target specific saved examples directly, and `x-mock-response-code` to filter candidate responses by HTTP status code before matcher evaluation.
+- **Import Notice Classification & Conflict Detection** — Evaluates imported matcher signatures to distinguish genuine routing conflicts (identical query/header matchers or multiple unconditional examples) from harmless distinct parameter variants (e.g. `?VM=AV` vs `?ACC=0000000000`), eliminating false ambiguity warnings.
+- **Granular Script Severity Classification** — Postman pre-request scripts are surfaced as actionable warnings (`report.warnings`) advising manual polyglot script review, while test assertions are recorded as informational notices (`report.notices`).
+
+#### Postman Template Compatibility & Dynamic Helpers
+- **`{{$timestampSeconds}}` & `{{$postmanTimestamp}}` Helpers** — Generates 10-digit Unix epoch timestamps in seconds matching Postman dynamic variable behavior.
+- **Import-Time Timestamp Translation** — Automatically translates Postman `{{$timestamp}}` occurrences in imported response templates to `{{$timestampSeconds}}`, preserving native Dynamic Mock `{{$timestamp}}` (13-digit Unix epoch milliseconds) for existing routes.
+- **Safe Query Parameter Extraction (`{{$queryParams}}`)** — Custom Handlebars helper reading query parameters directly from `request.queryParams` wrapped in `Handlebars.SafeString` to prevent HTML entity escaping of Base64 padding (`=`) or symbols in query strings.
+
+#### Collection Explorer & UX Enhancements
+- **3-Level Collection Tree (`Sidebar`)** — Hierarchical sidebar tree structure: Collection Folder $\to$ Request Item $\to$ Example Variants, displaying total item counts and active variant sub-trees.
+- **Visual Format & Status Badges** — Badges indicating response formats (`HTML`, `XML`, `JSON`), HTTP status codes (`200`, `404`, etc.), and matched query condition pills (e.g. `[VM=AV]`, `[ACC=0000000000]`).
+- **Test Client Auto-Prefill** — Selecting a variant in the Collection Explorer automatically pre-fills test client query parameters, headers, and request bodies using the example's `originalRequest` metadata.
+- **Smart GET Header Handling** — Omits body-specific headers (`Content-Type`, `Content-Length`) on GET requests while preserving explicit user overrides in the Test Client.
+- **Import Modal Notice Feedback** — Renders informational notices in a dedicated blue badge section alongside warnings and error summaries with fallback compatibility for legacy backends.
+
+#### Platform Execution Contract & Telemetry Standardization
+- **Formalized Execution Modes (`ExecutionMode.java`)** — Core enum defining standard execution modes: `INLINE`, `PROXY`, `SCRIPT`, `SCENARIO`, and `WEBHOOK`.
+- **Mock Action Contract (`MockActionContract.java`)** — Enforces execution contracts across adapters and services, standardizing telemetry aliases while ensuring backward compatibility with existing telemetry consumers.
+
+### Scope & Compatibility Boundaries
+
+#### Supported Behavior
+- Full Postman Collection Schema v2.1 import with multi-example splitting, deterministic routing, and idempotent re-import.
+- Header-based mock dispatching via `x-mock-response-name` and status filtering via `x-mock-response-code`.
+- Handlebars template helpers for `$timestampSeconds`, `$postmanTimestamp`, and raw `$queryParams`.
+- Automatic pre-fill of query parameters, headers, and bodies in Test Client from imported example requests.
+
+#### Partially Supported Behavior
+- **Postman Scripts**: Pre-request scripts and test assertion blocks are parsed and classified during collection import. Dynamic Mock reports scripts in the import summary (pre-request as warnings, assertions as notices), but does not execute the Postman JavaScript `pm.*` runtime sandbox. Pre-request logic can be migrated to Dynamic Mock polyglot post-scripts.
+- **Collection Variables**: Variables defined on imported collections are extracted and seeded into an environment variable set (`[CollectionName] Variables`), but runtime mutation via Postman scripts is not supported.
+
+#### Intentionally Deferred Postman Features
+- Cloud Postman workspace synchronization, monitor runs, Newman test runner lifecycle hooks, and Postman API key authentication.
+- Postman dynamic mock server URL generation and cloud-based proxy routing.
+
+#### Backward-Compatible Aliases
+- **Native `{{$timestamp}}`**: Continues to emit 13-digit millisecond epoch timestamps for all existing routes and templates; Postman collections are translated at import time to `{{$timestampSeconds}}`.
+- **Telemetry Aliases**: `executionMode` and `actionType` properties retain backward compatibility across `ExecutionEvent` and DTO mappings.
+
+#### Security Invariants
+- **Hardware-Grade Iframe Sandboxing**: Interactive HTML preview strictly enforces `sandbox="allow-scripts allow-forms allow-popups"` with zero `allow-same-origin` or `allow-top-navigation`.
+- **Zero Double Execution**: Previews are rendered strictly in-memory via `srcdoc` without re-executing GET/POST requests against mock endpoints.
+- **Sandbox CORS Segregation**: Sandboxed `Origin: null` requests remain restricted to `/mock/**` endpoints while all `/api/**` administrative routes remain secured behind JWT authorization walls.
+
+---
+
 ## [0.6.1] — Interactive Simulation Experience (2026-10-30)
 
 ### Added
